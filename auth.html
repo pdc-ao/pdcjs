@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Entrar / Registrar — AgriConnect Angola</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <span class="logo">A</span>
+      <span class="brand-name">AgriConnect Angola</span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Início</a>
+      <a href="products.html">Produtos</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container auth-page">
+  <h1>Entrar / Registrar</h1>
+
+  <div class="auth-tabs">
+    <button class="tab-btn active" data-target="login">Entrar</button>
+    <button class="tab-btn" data-target="register">Registrar</button>
+  </div>
+
+  <div id="login" class="auth-panel">
+    <form id="loginForm">
+      <label>Email<input name="email" type="email" required /></label>
+      <label>Senha<input name="password" type="password" required /></label>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Entrar (Demo)</button>
+      </div>
+      <div id="loginError" class="form-error" aria-live="polite"></div>
+      <p class="muted">Nota: Esta página suporta demonstração local (client-side). Para usar a autenticação do servidor, acesse a sua rota de login do backend.</p>
+    </form>
+  </div>
+
+  <div id="register" class="auth-panel hidden">
+    <form id="registerForm">
+      <label>Nome de usuário<input name="username" required /></label>
+      <label>Email<input name="email" type="email" required /></label>
+      <label>Nome completo<input name="fullName" /></label>
+      <label>Senha<input name="password" type="password" required /></label>
+      <label>Confirmar senha<input name="confirmPassword" type="password" required /></label>
+      <label>Tipo de usuário
+        <select name="role" required>
+          <option value="">Selecione</option>
+          <option value="PRODUCER">Produtor</option>
+          <option value="CONSUMER">Consumidor</option>
+          <option value="STORAGE_OWNER">Proprietário de Armazém</option>
+          <option value="TRANSPORTER">Transportador</option>
+          <option value="TRANSFORMER">Transformador</option>
+        </select>
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Registrar (Demo)</button>
+      </div>
+      <div id="registerError" class="form-error" aria-live="polite"></div>
+      <p class="muted">Nota: Registro demo apenas salva localmente. Para registrar no servidor, o backend aceita POST /api/users.</p>
+    </form>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>© <span id="yearAuth"></span> AgriConnect Angola</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearAuth').innerText = new Date().getFullYear();
+  // tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.auth-panel').forEach(p => p.classList.add('hidden'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.target).classList.remove('hidden');
+    });
+  });
+
+  // demo local auth (no server)
+  const loginForm = document.getElementById('loginForm');
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const email = fd.get('email'), password = fd.get('password');
+    // demo: accept any non-empty credentials and save to localStorage
+    if (!email || !password) {
+      document.getElementById('loginError').textContent = 'Preencha todos os campos';
+      return;
+    }
+    localStorage.setItem('agri_user', JSON.stringify({ email, role: 'CONSUMER', name: email }));
+    location.href = 'index.html';
+  });
+
+  const registerForm = document.getElementById('registerForm');
+  registerForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const username = fd.get('username'), email = fd.get('email'), pw = fd.get('password'), cpw = fd.get('confirmPassword'), role = fd.get('role');
+    if (!username || !email || !pw || !cpw || !role) {
+      document.getElementById('registerError').textContent = 'Preencha todos os campos';
+      return;
+    }
+    if (pw !== cpw) {
+      document.getElementById('registerError').textContent = 'Senhas não coincidem';
+      return;
+    }
+    // Demo: store user in localStorage list
+    const storeKey = 'agri_users_demo';
+    const users = JSON.parse(localStorage.getItem(storeKey) || '[]');
+    users.push({ id: Date.now().toString(), username, email, fullName: fd.get('fullName') || '', role });
+    localStorage.setItem(storeKey, JSON.stringify(users));
+    alert('Registrado (demo). Use Entrar para simular sessão.');
+    document.querySelector('.tab-btn[data-target="login"]').click();
+  });
+</script>
+</body>
+</html>

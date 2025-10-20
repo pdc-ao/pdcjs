@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Produtos — AgriConnect Angola</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <span class="logo">A</span>
+      <span class="brand-name">AgriConnect Angola</span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Início</a>
+      <a href="products.html" class="active">Produtos</a>
+      <a href="transport.html">Transporte</a>
+      <a href="storage.html">Armazenamento</a>
+      <a href="auth.html">Entrar / Registrar</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="page-header">
+    <h1>Produtos Disponíveis</h1>
+    <p class="lead">Encontre produtos diretamente dos produtores</p>
+  </div>
+
+  <div class="filters">
+    <input id="searchInput" placeholder="Buscar por nome ou descrição..." />
+    <select id="categorySelect">
+      <option value="">Todas as categorias</option>
+      <option>Cereais</option>
+      <option>Frutas</option>
+      <option>Vegetais</option>
+      <option>Legumes</option>
+      <option>Tubérculos</option>
+      <option>Outros</option>
+    </select>
+    <button id="searchBtn" class="btn">Buscar</button>
+  </div>
+
+  <div id="productsGrid" class="grid cards-grid" aria-live="polite"></div>
+
+  <div id="pagination" class="pagination">
+    <button id="prevBtn" class="btn">« Anterior</button>
+    <span id="pageInfo"></span>
+    <button id="nextBtn" class="btn">Próxima »</button>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>© <span id="yearProducts"></span> AgriConnect Angola</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearProducts').innerText = new Date().getFullYear();
+  window.productsPageState = { page: 1, limit: 12 };
+  document.getElementById('searchBtn').addEventListener('click', () => { window.productsPageState.page = 1; loadProducts(); });
+  document.getElementById('prevBtn').addEventListener('click', () => { if (window.productsPageState.page>1) { window.productsPageState.page--; loadProducts(); } });
+  document.getElementById('nextBtn').addEventListener('click', () => { window.productsPageState.page++; loadProducts(); });
+  loadProducts();
+</script>
+</body>
+</html>

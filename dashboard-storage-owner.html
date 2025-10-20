@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Proprietário de Armazém — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Proprietário de Armazém</h1>
+  <section>
+    <h2>Minhas Instalações</h2>
+    <div id="storageList" class="grid cards-grid"></div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearSto"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearSto').innerText = new Date().getFullYear();
+  (async function loadStorage() {
+    const user = getDemoSession();
+    if (!user) {
+      document.getElementById('storageList').innerHTML = '<div class="muted">Faça login (demo) para ver instalações.</div>';
+      return;
+    }
+    try {
+      const res = await fetchJSON(`/api/storage?ownerId=${encodeURIComponent(user.id)}`);
+      const list = Array.isArray(res) ? res : (res.data || res);
+      const grid = document.getElementById('storageList'); grid.innerHTML = '';
+      (list || []).forEach(s => {
+        const el = document.createElement('div'); el.className='card';
+        el.innerHTML = `<div><h3 class="card-title">${escapeHtml(s.facilityName)}</h3><p class="card-desc">${escapeHtml(s.description || '')}</p><div class="muted">${escapeHtml(s.city || '')} — ${escapeHtml(s.availabilityStatus || '')}</div></div><div class="card-footer"><a class="btn btn-sm" href="#">Ver</a></div>`;
+        grid.appendChild(el);
+      });
+    } catch (err) {
+      document.getElementById('storageList').innerHTML = '<div class="muted">Erro ao carregar instalações</div>';
+    }
+  })();
+</script>
+</body>
+</html>

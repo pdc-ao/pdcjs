@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Transportador — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Transportador</h1>
+  <section>
+    <h2>Meus Serviços</h2>
+    <div id="transporterServices" class="grid cards-grid"></div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearTrans"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearTrans').innerText = new Date().getFullYear();
+  (async function loadTransporter() {
+    const user = getDemoSession();
+    if (!user) {
+      document.getElementById('transporterServices').innerHTML = '<div class="muted">Faça login (demo) para ver seus serviços.</div>';
+      return;
+    }
+    try {
+      const res = await fetchJSON(`/api/transport?transporterId=${encodeURIComponent(user.id)}&limit=10`);
+      const services = Array.isArray(res) ? res : (res.data || res.transportListings || []);
+      const grid = document.getElementById('transporterServices'); grid.innerHTML = '';
+      (services || []).forEach(s => {
+        const el = document.createElement('div'); el.className='card';
+        el.innerHTML = `<div><h3 class="card-title">${escapeHtml(s.serviceTitle || s.title || '—')}</h3><p class="card-desc">${escapeHtml(s.description || '')}</p></div><div class="card-footer"><div class="muted">${escapeHtml(s.baseLocationCity || '')}</div><div class="badge">${escapeHtml(s.availabilityStatus || '')}</div></div>`;
+        grid.appendChild(el);
+      });
+    } catch (err) {
+      document.getElementById('transporterServices').innerHTML = '<div class="muted">Erro ao carregar serviços</div>';
+    }
+  })();
+</script>
+</body>
+</html>

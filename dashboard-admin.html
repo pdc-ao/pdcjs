@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Dashboard — AgriConnect Angola</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect Angola</span></a>
+    <nav class="main-nav"><a href="dashboard.html">Dashboard</a><a href="products.html">Produtos</a><a href="auth.html">Entrar</a></nav>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Admin</h1>
+  <p class="muted" id="adminUser">Carregando...</p>
+
+  <section class="grid stats-grid" id="adminStats">
+    <div class="stat-card"><div class="stat-value" id="totalUsers">—</div><div class="stat-label">Usuários</div></div>
+    <div class="stat-card"><div class="stat-value" id="totalProducts">—</div><div class="stat-label">Produtos</div></div>
+    <div class="stat-card"><div class="stat-value" id="pendingDocs">—</div><div class="stat-label">Documentos Pend.</div></div>
+  </section>
+
+  <section>
+    <h2>Ferramentas</h2>
+    <div class="grid features-grid">
+      <a class="feature-card" href="admin-users.html"><div class="feature-emoji">👥</div><h3>Gerir Usuários</h3></a>
+      <a class="feature-card" href="admin-verification.html"><div class="feature-emoji">✅</div><h3>Verificações</h3></a>
+      <a class="feature-card" href="dashboard-orders.html"><div class="feature-emoji">📦</div><h3>Pedidos</h3></a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">© <span id="yearAdmin"></span> AgriConnect Angola</div>
+</footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearAdmin').innerText = new Date().getFullYear();
+
+  (async function loadAdminData() {
+    const user = getDemoSession();
+    document.getElementById('adminUser').textContent = user ? `${user.name || user.email} — ${user.role}` : 'Sessão demo';
+    try {
+      // Try to fetch real data, fall back gracefully
+      const users = await fetchJSON('/api/users').catch(()=>[]);
+      document.getElementById('totalUsers').textContent = users.length || '—';
+      const productsResp = await fetchJSON('/api/products?page=1&limit=1').catch(()=>({ products: [] }));
+      document.getElementById('totalProducts').textContent = productsResp?.pagination?.total ?? (productsResp.products ? productsResp.products.length : '—');
+      const docs = await fetchJSON('/api/verification/documents?status=PENDING_REVIEW').catch(()=>[]);
+      document.getElementById('pendingDocs').textContent = Array.isArray(docs) ? docs.length : (docs.total || '—');
+    } catch (e) {
+      document.getElementById('totalUsers').textContent = '—';
+      document.getElementById('totalProducts').textContent = '—';
+      document.getElementById('pendingDocs').textContent = '—';
+    }
+  })();
+</script>
+</body>
+</html>

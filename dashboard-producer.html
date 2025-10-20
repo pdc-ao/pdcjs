@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Produtor — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Produtor</h1>
+  <div id="producerSummary" class="grid stats-grid">
+    <div class="stat-card"><div class="stat-value" id="prodProducts">—</div><div class="stat-label">Meus Produtos</div></div>
+    <div class="stat-card"><div class="stat-value" id="prodOrders">—</div><div class="stat-label">Pedidos</div></div>
+    <div class="stat-card"><div class="stat-value" id="prodRating">—</div><div class="stat-label">Média</div></div>
+  </div>
+
+  <section>
+    <h2>Últimas Listagens</h2>
+    <div id="producerListings" class="grid cards-grid"></div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearProd"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearProd').innerText = new Date().getFullYear();
+  (async function loadProducer() {
+    const user = getDemoSession();
+    if (!user) {
+      document.getElementById('producerListings').innerHTML = '<div class="muted">Faça login (demo) para ver suas listagens.</div>';
+      return;
+    }
+    // Attempt to fetch producer listings from API; fallback to demo localStorage
+    try {
+      const resp = await fetchJSON(`/api/products?producerId=${encodeURIComponent(user.id)}&limit=10`);
+      const products = resp.products || resp.data || [];
+      document.getElementById('prodProducts').textContent = products.length;
+      renderSimpleGrid('producerListings', products);
+    } catch (e) {
+      // demo fallback: show local created products if any
+      document.getElementById('producerListings').innerHTML = '<div class="muted">Nenhuma listagem (modo demo).</div>';
+    }
+  })();
+</script>
+</body>
+</html>

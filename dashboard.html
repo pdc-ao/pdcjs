@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard — AgriConnect Angola</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <span class="logo">A</span>
+      <span class="brand-name">AgriConnect Angola</span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Início</a>
+      <a href="products.html">Produtos</a>
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="auth.html" id="authNav">Entrar</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container dashboard-page">
+  <div class="dashboard-header">
+    <h1>Dashboard</h1>
+    <div id="userInfo" class="muted">Carregando...</div>
+  </div>
+
+  <nav class="dashboard-nav" id="dashboardNav">
+    <!-- role-specific links injected here -->
+  </nav>
+
+  <section id="dashboardContent" class="dashboard-content">
+    <div class="muted">Selecione uma seção no menu acima. As páginas de perfil e ferramentas do dashboard (produtor/consumidor/transportador/armazenador/admin) estão disponíveis como páginas separadas estáticas neste pacote.</div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>© <span id="yearDash"></span> AgriConnect Angola</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearDash').innerText = new Date().getFullYear();
+
+  // Setup dashboard links based on demo session (localStorage) or server session
+  (function initDashboard() {
+    const user = getDemoSession(); // from app.js
+    const userInfo = document.getElementById('userInfo');
+    const nav = document.getElementById('dashboardNav');
+
+    if (!user) {
+      userInfo.innerHTML = 'Sessão demo não encontrada. <a href="auth.html">Entrar</a> (modo demo)';
+      document.getElementById('authNav').textContent = 'Entrar';
+      nav.innerHTML = '';
+      return;
+    }
+
+    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+
+    // Common links
+    const links = [
+      { href: 'dashboard-products.html', label: 'Meus Produtos', roles: ['PRODUCER'] },
+      { href: 'dashboard-orders.html', label: 'Pedidos', roles: ['PRODUCER','CONSUMER','STORAGE_OWNER','TRANSPORTER','TRANSFORMER'] },
+      { href: 'dashboard-facilities.html', label: 'Instalações', roles: ['TRANSFORMER'] },
+      { href: 'dashboard-storage.html', label: 'Armazéns', roles: ['STORAGE_OWNER'] },
+      { href: 'dashboard-transport.html', label: 'Transportes', roles: ['TRANSPORTER'] },
+      { href: 'dashboard-wallet.html', label: 'Carteira', roles: ['PRODUCER','CONSUMER','STORAGE_OWNER','TRANSPORTER','TRANSFORMER'] },
+      { href: 'dashboard-messages.html', label: 'Mensagens', roles: ['PRODUCER','CONSUMER','STORAGE_OWNER','TRANSPORTER','TRANSFORMER','ADMIN'] },
+      { href: 'dashboard-admin.html', label: 'Admin', roles: ['ADMIN'] },
+    ];
+
+    nav.innerHTML = '';
+    links.forEach(l => {
+      if (l.roles.includes(user.role)) {
+        const a = document.createElement('a');
+        a.href = l.href;
+        a.className = 'btn btn-outline';
+        a.textContent = l.label;
+        nav.appendChild(a);
+      }
+    });
+  })();
+</script>
+</body>
+</html>

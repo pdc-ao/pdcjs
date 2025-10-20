@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Consumidor — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Consumidor</h1>
+  <section>
+    <h2>Pedidos Recentes</h2>
+    <div id="consumerOrders" class="grid cards-grid"></div>
+    <div id="consumerMsg" class="muted"></div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearCons"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearCons').innerText = new Date().getFullYear();
+  (async function loadConsumerOrders() {
+    const user = getDemoSession();
+    if (!user) {
+      document.getElementById('consumerOrders').innerHTML = '<div class="muted">Faça login (demo) para ver pedidos.</div>';
+      return;
+    }
+    try {
+      const orders = await fetchJSON(`/api/orders?buyerId=${encodeURIComponent(user.id)}`).catch(()=>[]);
+      if (!Array.isArray(orders) || orders.length === 0) {
+        document.getElementById('consumerMsg').textContent = 'Nenhum pedido recente.';
+        return;
+      }
+      const grid = document.getElementById('consumerOrders');
+      grid.innerHTML = '';
+      orders.forEach(o => {
+        const card = document.createElement('div'); card.className='card';
+        card.innerHTML = `<div><h3 class="card-title">Pedido #${escapeHtml(o.id.slice(0,8))}</h3><p class="card-desc">${escapeHtml(o.orderStatus || '')}</p></div><div class="card-footer"><div class="muted">${new Date(o.orderDate).toLocaleDateString()}</div><div class="price">${o.totalAmount} ${o.currency||'AOA'}</div></div>`;
+        grid.appendChild(card);
+      });
+    } catch (err) {
+      document.getElementById('consumerMsg').textContent = 'Erro ao carregar pedidos.';
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Instalações — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Instalações de Transformação</h1>
+  <div id="facilitiesList" class="grid cards-grid"></div>
+  <div id="facMsg" class="muted"></div>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearFac"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearFac').innerText = new Date().getFullYear();
+  (async function loadFacilities() {
+    const user = getDemoSession();
+    if (!user) {
+      document.getElementById('facilitiesList').innerHTML = '<div class="muted">Faça login (demo) para ver instalações.</div>';
+      return;
+    }
+    try {
+      const facilities = await fetchJSON(`/api/facilities?ownerId=${encodeURIComponent(user.id)}`).catch(()=>[]);
+      const grid = document.getElementById('facilitiesList'); grid.innerHTML = '';
+      if (!facilities || facilities.length === 0) { document.getElementById('facMsg').textContent='Nenhuma instalação encontrada.'; return; }
+      facilities.forEach(f => {
+        const el = document.createElement('div'); el.className='card';
+        el.innerHTML = `<div><h3 class="card-title">${escapeHtml(f.facilityName)}</h3><p class="card-desc">${escapeHtml(f.description || '')}</p></div><div class="card-footer"><div class="muted">${escapeHtml(f.city || '')}</div></div>`;
+        grid.appendChild(el);
+      });
+    } catch (err) {
+      document.getElementById('facilitiesList').innerHTML = '<div class="muted">Erro ao carregar instalações</div>';
+    }
+  })();
+</script>
+</body>
+</html>

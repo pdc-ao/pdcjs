@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AgriConnect Angola</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <span class="logo">A</span>
+      <span class="brand-name">AgriConnect Angola</span>
+    </a>
+    <nav class="main-nav" id="mainNav">
+      <a href="products.html">Produtos</a>
+      <a href="transport.html">Transporte</a>
+      <a href="storage.html">Armazenamento</a>
+      <a href="auth.html" id="authLink">Entrar / Registrar</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="container">
+      <h1>Conectando Produtores e Consumidores em Angola</h1>
+      <p class="lead">A maior plataforma digital agrícola de Angola. Conecte-se com produtores, encontre armazenamento e transporte.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="auth.html">Começar Agora</a>
+        <a class="btn btn-outline" href="products.html">Ver Produtos</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="features container">
+    <h2>Como Funciona</h2>
+    <div class="grid features-grid">
+      <article class="feature-card">
+        <div class="feature-emoji">🌱</div>
+        <h3>Produtores</h3>
+        <p>Venda produtos diretamente ao consumidor.</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-emoji">🛒</div>
+        <h3>Consumidores</h3>
+        <p>Compre produtos frescos e locais.</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-emoji">🏭</div>
+        <h3>Armazenamento</h3>
+        <p>Encontre armazéns e serviços de armazenagem.</p>
+      </article>
+
+      <article class="feature-card">
+        <div class="feature-emoji">🚚</div>
+        <h3>Transporte</h3>
+        <p>Conecte-se com transportadores confiáveis.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="container">
+    <h2>Últimos Produtos</h2>
+    <div id="homeProducts" class="grid cards-grid"></div>
+    <div id="homeMsg" class="muted"></div>
+  </section>
+
+  <section class="cta-section">
+    <div class="container">
+      <h2>Pronto para revolucionar o seu negócio agrícola?</h2>
+      <a class="btn btn-primary" href="auth.html">Cadastre-se Gratuitamente</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>© <span id="yearHome"></span> AgriConnect Angola — Todos os direitos reservados.</p>
+  </div>
+</footer>
+
+<script src="js/app.js"></script>
+<script>
+  document.getElementById('yearHome').innerText = new Date().getFullYear();
+  // load a few products for the homepage
+  (async function() {
+    const container = document.getElementById('homeProducts');
+    const msg = document.getElementById('homeMsg');
+    container.innerHTML = '<div class="loading">Carregando...</div>';
+    try {
+      const res = await fetch('/api/products?page=1&limit=4');
+      const json = await res.json();
+      const products = json.products || json.data || [];
+      container.innerHTML = '';
+      if (!products || products.length === 0) {
+        msg.textContent = 'Nenhum produto disponível no momento.';
+        return;
+      }
+      products.forEach(p => {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.innerHTML = `
+            <div class="card-body">
+              <h3 class="card-title">${escapeHtml(p.title || '—')}</h3>
+              <p class="card-desc">${escapeHtml((p.description || '').slice(0,120))}</p>
+              <div class="card-meta"><div class="badge">${escapeHtml(p.category || '')}</div>
+              <div class="rating">${p.producer?.averageRating ? '★ ' + Number(p.producer.averageRating).toFixed(1) : ''}</div></div>
+            </div>
+            <div class="card-footer">
+              <div class="price">${p.pricePerUnit} ${p.currency || 'AOA'}/${p.unitOfMeasure || ''}</div>
+              <div class="actions">
+                <a class="btn btn-sm btn-primary" href="product.html?id=${encodeURIComponent(p.id)}">Ver</a>
+                <a class="btn btn-sm" href="auth.html">Contactar</a>
+              </div>
+            </div>
+          `;
+        container.appendChild(card);
+      });
+    } catch (e) {
+      container.innerHTML = '';
+      msg.textContent = 'Erro carregando produtos (funcional offline).';
+    }
+  })();
+</script>
+</body>
+</html>

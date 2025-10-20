@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pedidos — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Pedidos</h1>
+  <div id="ordersList" class="grid cards-grid"></div>
+  <div id="ordersMsg" class="muted"></div>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearOrders"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearOrders').innerText = new Date().getFullYear();
+  (async function loadOrders() {
+    const user = getDemoSession();
+    if (!user) {
+      document.getElementById('ordersList').innerHTML = '<div class="muted">Faça login (demo) para ver pedidos.</div>';
+      return;
+    }
+    try {
+      const orders = await fetchJSON(`/api/orders?buyerId=${encodeURIComponent(user.id)}`).catch(()=>[]);
+      const grid = document.getElementById('ordersList'); grid.innerHTML = '';
+      if (!orders || orders.length === 0) { document.getElementById('ordersMsg').textContent='Nenhum pedido encontrado.'; return; }
+      orders.forEach(o => {
+        const el = document.createElement('div'); el.className='card';
+        el.innerHTML = `<div><h3 class="card-title">Pedido #${escapeHtml(o.id.slice(0,8))}</h3><p class="card-desc">${escapeHtml(o.orderStatus)}</p></div><div class="card-footer"><div class="muted">${new Date(o.orderDate).toLocaleDateString()}</div><div class="price">${o.totalAmount} ${o.currency}</div></div>`;
+        grid.appendChild(el);
+      });
+    } catch (err) {
+      document.getElementById('ordersList').innerHTML = '<div class="muted">Erro ao carregar pedidos</div>';
+    }
+  })();
+</script>
+</body>
+</html>
