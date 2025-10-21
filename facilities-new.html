@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nova Instalação — AgriConnect</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Nova Instalação</h1>
+  <form id="facForm" class="auth-page">
+    <label>Nome da Instalação<input name="facilityName" required /></label>
+    <label>Tipo<input name="facilityType" /></label>
+    <label>Capacidade<input name="capacity" type="number" /></label>
+    <label>Unidade<input name="capacityUnit" /></label>
+    <label>Endereço<input name="addressLine1" required /></label>
+    <label>Cidade<input name="city" required /></label>
+    <label>País<input name="country" value="Angola" /></label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Criar</button></div>
+    <div id="facMsg" class="muted"></div>
+  </form>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearFN"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearFN').innerText = new Date().getFullYear();
+  document.getElementById('facForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const values = Object.fromEntries(new FormData(e.target));
+    const user = getDemoSession();
+    if (!user) { document.getElementById('facMsg').textContent = 'Faça login (demo) para criar.'; return; }
+    try {
+      const res = await fetch('/api/facilities', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(values) });
+      if (!res.ok) { const j=await res.json().catch(()=>({})); throw new Error(j.error||'Falha'); }
+      alert('Instalação criada.');
+      location.href = 'dashboard-facilities.html';
+    } catch (err) {
+      document.getElementById('facMsg').textContent = 'Erro: ' + err.message;
+    }
+  });
+</script>
+</body>
+</html>

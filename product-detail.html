@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Produto — Detalhes</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a>
+    <nav class="main-nav"><a href="products.html">Produtos</a><a href="dashboard.html">Dashboard</a><a href="auth.html">Entrar</a></nav>
+  </div>
+</header>
+
+<main class="container">
+  <div id="productArea">
+    <div class="loading">Carregando produto...</div>
+  </div>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearPD"></span> AgriConnect Angola</div></footer>
+
+<script src="js/app.js"></script>
+<script>
+  document.getElementById('yearPD').innerText = new Date().getFullYear();
+
+  (async function loadProduct() {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const area = document.getElementById('productArea');
+    if (!id) {
+      area.innerHTML = '<div class="muted">ID do produto ausente na query string.</div>';
+      return;
+    }
+
+    area.innerHTML = '<div class="loading">Carregando produto...</div>';
+    try {
+      // Try server endpoint /api/products/:id first, fallback to query param variant
+      let product = null;
+      try {
+        const res = await fetch(`/api/products/${encodeURIComponent(id)}`);
+        if (res.ok) product = await res.json();
+      } catch (e) { /* ignore */ }
+      if (!product) {
+        const res2 = await fetch(`/api/products?productId=${encodeURIComponent(id)}`);
+        if (res2.ok) {
+          const json = await res2.json();
+          product = (json.products && json.products[0]) || (Array.isArray(json) && json[0]) || json;
+        }
+      }
+
+      if (!product) {
+        area.innerHTML = '<div class="muted">Produto não encontrado.</div>';
+        return;
+      }
+
+      area.innerHTML = `
+          <article class="card">
+            <div class="card-body">
+              <h2 class="card-title">${escapeHtml(product.title)}</h2>
+              <p class="muted">Categoria: ${escapeHtml(product.category || '')} ${product.subcategory ? ' / ' + escapeHtml(product.subcategory) : ''}</p>
+              <p class="card-desc">${escapeHtml(product.description || '')}</p>
+              <p><strong>Disponível:</strong> ${product.quantityAvailable} ${escapeHtml(product.unitOfMeasure || '')}</p>
+              <p><strong>Preço:</strong> ${product.pricePerUnit} ${escapeHtml(product.currency||'AOA')} / ${escapeHtml(product.unitOfMeasure || '')}</p>
+              <p><strong>Produtor:</strong> ${escapeHtml(product.producer?.fullName || product.producer?.username || '')} ${product.producer?.isVerified ? '✅' : ''}</p>
+            </div>
+            <div class="card-footer">
+              <div class="price">${product.pricePerUnit} ${product.currency || 'AOA'}</div>
+              <div class="actions">
+                <a href="auth.html" class="btn btn-sm btn-primary">Comprar (Entrar)</a>
+                <a href="dashboard.html" class="btn btn-sm">Contactar Produtor</a>
+              </div>
+            </div>
+          </article>
+        `;
+    } catch (err) {
+      console.error(err);
+      area.innerHTML = `<div class="muted">Erro carregando produto: ${escapeHtml(err.message)}</div>`;
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin — Verificações</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Verificações de Documentos</h1>
+  <div id="verifList" class="grid cards-grid"></div>
+  <div id="verifMsg" class="muted"></div>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearAV"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearAV').innerText = new Date().getFullYear();
+
+  (async function loadVerifications(){
+    const area = document.getElementById('verifList');
+    area.innerHTML = '<div class="loading">Carregando...</div>';
+    try {
+      // server endpoint: /api/admin/verification or /api/verification/documents
+      const data = await fetchJSON('/api/admin/verification?status=PENDING_REVIEW').catch(()=>fetchJSON('/api/verification/documents?status=PENDING_REVIEW'));
+      const docs = Array.isArray(data) ? data : (data.documents || data);
+      area.innerHTML = '';
+      if (!docs || docs.length===0) { document.getElementById('verifMsg').textContent='Nenhum documento pendente.'; return; }
+      docs.forEach(d=>{
+        const item = document.createElement('div'); item.className='card';
+        item.innerHTML = `<div><h3 class="card-title">${escapeHtml(d.docType || d.type || 'Documento')}</h3><p class="card-desc">Usuário: ${escapeHtml(d.user?.fullName || d.user?.username || d.userId || '')}</p><p><a href="${escapeHtml(d.fileUrl || '#')}" target="_blank">Ver arquivo</a></p></div><div class="card-footer"><div><button class="btn btn-sm btn-primary" data-id="${escapeHtml(d.id)}" data-action="approve">Aprovar</button><button class="btn btn-sm" data-id="${escapeHtml(d.id)}" data-action="reject">Rejeitar</button></div></div>`;
+        item.querySelectorAll('button').forEach(btn=>{
+          btn.addEventListener('click', async () => {
+            const id = btn.dataset.id; const action = btn.dataset.action;
+            if (action === 'reject') {
+              const note = prompt('Motivo da rejeição (opcional):');
+              if (note === null) return;
+              await patchVerify(id, 'REJECTED', note);
+            } else {
+              await patchVerify(id, 'APPROVED');
+            }
+            item.remove();
+          });
+        });
+        area.appendChild(item);
+      });
+    } catch (err) {
+      area.innerHTML = '<div class="muted">Erro ao carregar verificações</div>';
+    }
+  })();
+
+  async function patchVerify(id, status, notes='') {
+    try {
+      const res = await fetch(`/api/admin/verification/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ status, notes })
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(()=>({}));
+        throw new Error(j.error || 'Falha');
+      }
+      alert('Documento atualizado: '+status);
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    }
+  }
+</script>
+</body>
+</html>

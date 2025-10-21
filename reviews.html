@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Avaliações — AgriConnect</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Avaliações</h1>
+  <div>
+    <form id="reviewForm" class="auth-page" style="max-width:620px">
+      <label>Entidade avaliada (ID)<input name="entityId" required /></label>
+      <label>Tipo (User/Product/Storage/Transport)<input name="entityType" required /></label>
+      <label>Nota (1-5)<input name="rating" type="number" min="1" max="5" required /></label>
+      <label>Comentário<textarea name="comment"></textarea></label>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Enviar Avaliação</button></div>
+    </form>
+  </div>
+
+  <section>
+    <h2>Últimas Avaliações</h2>
+    <div id="reviewsList" class="grid cards-grid"></div>
+  </section>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearRev"></span> AgriConnect Angola</div></footer>
+
+<script src="js/app.js"></script>
+<script>
+  document.getElementById('yearRev').innerText = new Date().getFullYear();
+
+  document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    try {
+      const res = await fetch('/api/reviews', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+          reviewerId: getDemoSession()?.id || 'demo',
+          reviewedEntityId: data.entityId,
+          reviewedEntityType: data.entityType,
+          rating: Number(data.rating),
+          comment: data.comment
+        }) });
+      if (!res.ok) {
+        const j = await res.json().catch(()=>({})); throw new Error(j.error||'Falha');
+      }
+      alert('Avaliação enviada.');
+      loadLatest();
+    } catch (err) {
+      alert('Erro ao enviar avaliação: ' + err.message);
+    }
+  });
+
+  async function loadLatest() {
+    try {
+      const list = await fetchJSON('/api/reviews?limit=20').catch(()=>[]);
+      const grid = document.getElementById('reviewsList'); grid.innerHTML='';
+      (list || []).forEach(r => {
+        const el = document.createElement('div'); el.className='card';
+        el.innerHTML = `<div><h3 class="card-title">★ ${escapeHtml(String(r.rating))} — ${escapeHtml(r.reviewedEntityType)}</h3><p class="card-desc">${escapeHtml(r.comment || '')}</p></div><div class="card-footer"><div class="muted">${escapeHtml(r.reviewer?.username || r.reviewerId || '')}</div><div class="muted">${new Date(r.reviewDate).toLocaleDateString()}</div></div>`;
+        grid.appendChild(el);
+      });
+    } catch (err) {
+      document.getElementById('reviewsList').innerHTML = '<div class="muted">Erro ao carregar avaliações</div>';
+    }
+  }
+
+  loadLatest();
+</script>
+</body>
+</html>

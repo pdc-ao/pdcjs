@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin — Usuários</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+
+<main class="container">
+  <h1>Gestão de Usuários</h1>
+  <div id="adminUsersList" class="grid cards-grid"></div>
+  <div id="adminUsersMsg" class="muted"></div>
+</main>
+
+<footer class="site-footer"><div class="container">© <span id="yearAU"></span> AgriConnect Angola</div></footer>
+
+<script src="app.js"></script>
+<script>
+  document.getElementById('yearAU').innerText = new Date().getFullYear();
+
+  (async function loadUsers(){
+    const el = document.getElementById('adminUsersList');
+    el.innerHTML = '<div class="loading">Carregando...</div>';
+    try {
+      const users = await fetchJSON('/api/admin/users').catch(()=>null) || await fetchJSON('/api/users');
+      el.innerHTML = '';
+      if (!users || users.length===0) {
+        document.getElementById('adminUsersMsg').textContent = 'Nenhum usuário encontrado.';
+        return;
+      }
+      users.forEach(u=>{
+        const node = document.createElement('div'); node.className='card';
+        node.innerHTML = `<div><h3 class="card-title">${escapeHtml(u.fullName||u.username)}</h3><p class="muted">${escapeHtml(u.email)} — ${escapeHtml(u.role)}</p></div><div class="card-footer"><div><button class="btn btn-sm" data-user="${escapeHtml(u.id)}">Suspender</button></div></div>`;
+        node.querySelector('button').addEventListener('click', async () => {
+          if (!confirm('Suspender usuário?')) return;
+          try {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(u.id)}/suspend`, { method: 'POST' });
+            if (!res.ok) throw new Error('Falha');
+            alert('Usuário suspenso (se endpoint implementado).');
+          } catch (err) {
+            alert('Erro ao suspender: ' + err.message);
+          }
+        });
+        el.appendChild(node);
+      });
+    } catch (err) {
+      el.innerHTML = '<div class="muted">Erro ao carregar usuários</div>';
+    }
+  })();
+</script>
+</body>
+</html>
