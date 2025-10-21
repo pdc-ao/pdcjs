@@ -1,0 +1,908 @@
+// =====================================================
+// COMPLETE PRISMA SCHEMA FOR AGRI-LOGISTICS PLATFORM
+// =====================================================
+// Includes: Core platform + Production Planning + Notifications + All discussed features
+// Run: npx prisma format
+// Then: npx prisma migrate dev --name complete_schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum UserRole {
+  PRODUCER
+  CONSUMER
+  STORAGE_OWNER
+  TRANSPORTER
+  TRANSFORMER
+  ADMIN
+}
+
+enum EntityType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DocumentStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+enum EscrowStatus {
+  HELD
+  RELEASED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ProductionStatus {
+  PLANNED
+  IN_PREPARATION
+  PLANTED
+  GROWING
+  READY_TO_HARVEST
+  HARVESTING
+  HARVESTED
+  CANCELLED
+}
+
+enum MilestoneType {
+  LAND_PREPARATION
+  PLANTING
+  FERTILIZATION
+  IRRIGATION
+  PEST_CONTROL
+  WEEDING
+  HARVEST_START
+  HARVEST_COMPLETE
+  POST_HARVEST
+  CUSTOM
+}
+
+enum ScheduleStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  SKIPPED
+}
+
+enum UpdateType {
+  PROGRESS_UPDATE
+  MILESTONE_REACHED
+  ISSUE_REPORTED
+  QUANTITY_CHANGE
+  DATE_CHANGE
+  WEATHER_IMPACT
+  PEST_DISEASE
+  GENERAL
+}
+
+enum PreOrderStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+// =====================================================
+// CORE USER MODEL
+// =====================================================
+
+model User {
+  id           String @id @default(uuid())
+  username     String @unique
+  email        String @unique
+  passwordHash String
+
+  // ========================================
+  // ENTITY TYPE (NEW - IMPORTANT!)
+  // ========================================
+  entityType EntityType @default(INDIVIDUAL) // Individual or Company
+
+  // Personal information (for INDIVIDUAL)
+  fullName    String?
+  dateOfBirth DateTime?
+
+  // Company information (for COMPANY)
+  companyName        String?   @unique
+  registrationNumber String? // Business registration number
+  taxId              String? // TIN or VAT number
+  companyType        String? // LLC, Corporation, Sole Proprietorship, etc.
+  incorporationDate  DateTime?
+
+  // Common fields
+  phoneNumber       String?
+  addressLine1      String?
+  addressLine2      String?
+  city              String?
+  stateProvince     String?
+  postalCode        String?
+  country           String  @default("Angola")
+  latitude          Float?
+  longitude         Float?
+  profilePictureUrl String?
+
+  // Role & Verification
+  role                UserRole
+  isVerified          Boolean            @default(false)
+  verificationStatus  VerificationStatus @default(PENDING)
+  verificationDetails String?
+  averageRating       Float?
+
+  // Notification preferences
+  notificationPreferences Json? @default("{\"email\":true,\"sms\":false}")
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Role-specific details (one-to-one)
+  producerDetails    ProducerDetails?    @relation("ProducerDetails")
+  storageDetails     StorageDetails?     @relation("StorageDetails")
+  transporterDetails TransporterDetails? @relation("TransporterDetails")
+
+  // Listings / Offerings
+  productListings          ProductListing[]         @relation("ProducerListings")
+  storageListings          StorageListing[]         @relation("StorageListings")
+  transportListings        TransportListing[]       @relation("TransportListings")
+  transformationFacilities TransformationFacility[] @relation("OwnerFacilities")
+  offerings                Offering[]
+
+  // Orders & Transactions
+  buyerOrders        Order[]              @relation("BuyerOrders")
+  sellerOrders       Order[]              @relation("SellerOrders")
+  transporterOrders  Order[]              @relation("TransporterOrders")
+  buyerTransactions  PaymentTransaction[] @relation("Buyer")
+  sellerTransactions PaymentTransaction[] @relation("Seller")
+
+  // Reviews & Ratings
+  reviewsGiven    Review[]     @relation("ReviewerReviews")
+  reviewsReceived Review[]     @relation("ReviewedUserReviews")
+  ratingsGiven    UserRating[] @relation("Reviewer")
+  ratingsReceived UserRating[] @relation("Reviewed")
+
+  // Messaging
+  messagesSent     Message[] @relation("SenderMessages")
+  messagesReceived Message[] @relation("ReceiverMessages")
+
+  // Documents & Wallet
+  documents         Document[]
+  paymentReferences PaymentReference[]
+  walletBalance     WalletBalance?
+  transactionLedger TransactionLedger[]
+
+  // Audit & Scheduling
+  auditLogs         AuditLog[]
+  offeringSchedules OfferingSchedule[]
+
+  // Facility Bookings
+  facilityBookings FacilityBooking[]
+
+  // Order Status History
+  orderStatusChanges OrderStatusHistory[]
+
+  // Notifications
+  notifications Notification[]
+
+  // Production Planning
+  productionPlans         ProductionPlan[]       @relation("ProductionPlans")
+  productionUpdates       ProductionUpdate[]
+  productionSubscriptions ProductionSubscriber[]
+  preOrders               PreOrder[]
+
+  // Procurement
+  componentsRequested Component[] @relation("RequestedComponents")
+
+  @@index([email])
+  @@index([role])
+  @@index([isVerified])
+  @@index([entityType]) // NEW INDEX
+}
+
+// =====================================================
+// ROLE DETAILS
+// =====================================================
+
+model ProducerDetails {
+  id              String  @id @default(uuid())
+  userId          String  @unique
+  farmName        String?
+  farmDescription String?
+  certifications  String?
+  user            User    @relation("ProducerDetails", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StorageDetails {
+  id                     String  @id @default(uuid())
+  userId                 String  @unique
+  facilityName           String?
+  businessRegistrationId String?
+  user                   User    @relation("StorageDetails", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TransporterDetails {
+  id                         String  @id @default(uuid())
+  userId                     String  @unique
+  companyName                String?
+  driverLicenseId            String?
+  vehicleRegistrationDetails String?
+  user                       User    @relation("TransporterDetails", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =====================================================
+// LISTINGS
+// =====================================================
+
+model ProductListing {
+  id                      String    @id @default(uuid())
+  producerId              String
+  title                   String
+  description             String
+  category                String
+  subcategory             String?
+  quantityAvailable       Float
+  unitOfMeasure           String
+  pricePerUnit            Float
+  currency                String    @default("AOA")
+  plannedAvailabilityDate DateTime?
+  actualAvailabilityDate  DateTime?
+  locationAddress         String?
+  locationLatitude        Float?
+  locationLongitude       Float?
+  qualityCertifications   String?
+  imagesUrls              Json?
+  videoUrl                String?
+  status                  String
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  // Relations
+
+  producer   User        @relation("ProducerListings", fields: [producerId], references: [id])
+  orderItems OrderItem[] @relation("ProductOrderItems")
+  reviews    Review[]    @relation("ProductReviews")
+
+  @@index([status, category])
+  @@index([producerId])
+}
+
+model StorageListing {
+  id                 String   @id @default(uuid())
+  ownerId            String
+  facilityName       String
+  description        String
+  storageType        String
+  totalCapacity      Float?
+  capacityUnit       String?
+  availableCapacity  Float?
+  amenities          Json?
+  pricingStructure   String
+  responsibilities   String?
+  addressLine1       String
+  city               String
+  postalCode         String
+  country            String   @default("Angola")
+  latitude           Float
+  longitude          Float
+  imagesUrls         Json?
+  availabilityStatus String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+
+  owner   User     @relation("StorageListings", fields: [ownerId], references: [id])
+  orders  Order[]  @relation("StorageOrders")
+  reviews Review[] @relation("StorageReviews")
+
+  @@index([ownerId, city])
+  @@index([availabilityStatus])
+}
+
+model TransportListing {
+  id                     String   @id @default(uuid())
+  transporterId          String
+  serviceTitle           String
+  description            String?
+  vehicleType            String
+  carryingCapacityWeight Float?
+  capacityWeightUnit     String?
+  carryingCapacityVolume Float?
+  capacityVolumeUnit     String?
+  operationalRoutes      String?
+  primaryDestinationType String?
+  pricingModel           String
+  baseLocationCity       String
+  baseLocationCountry    String   @default("Angola")
+  availabilityStatus     String
+  insuranceDetails       String?
+  imagesUrls             Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+
+  transporter User     @relation("TransportListings", fields: [transporterId], references: [id])
+  orders      Order[]  @relation("TransportOrders")
+  reviews     Review[] @relation("TransportReviews")
+
+  @@index([transporterId, baseLocationCity])
+  @@index([availabilityStatus])
+}
+
+// =====================================================
+// ORDERS
+// =====================================================
+
+model Order {
+  id                    String    @id @default(uuid())
+  orderNumber           String?   @unique
+  buyerId               String
+  sellerId              String
+  transporterId         String?
+  storageId             String?
+  orderDate             DateTime  @default(now())
+  totalAmount           Float
+  currency              String    @default("AOA")
+  orderStatus           String
+  paymentStatus         String
+  paymentMethod         String?
+  transactionId         String?
+  shippingAddressLine1  String
+  shippingCity          String
+  shippingPostalCode    String
+  shippingCountry       String    @default("Angola")
+  notesForSeller        String?
+  notesForTransporter   String?
+  estimatedDeliveryDate DateTime?
+  actualDeliveryDate    DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now()) @updatedAt
+
+  // Relations
+
+  buyer            User                 @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller           User                 @relation("SellerOrders", fields: [sellerId], references: [id])
+  transporter      User?                @relation("TransporterOrders", fields: [transporterId], references: [id], map: "fk_order_transporter_user")
+  transportListing TransportListing?    @relation("TransportOrders", fields: [transporterId], references: [id], map: "fk_order_transporter_listing")
+  storage          StorageListing?      @relation("StorageOrders", fields: [storageId], references: [id])
+  orderItems       OrderItem[]          @relation("OrderItems")
+  statusHistory    OrderStatusHistory[]
+  preOrder         PreOrder?
+
+  @@index([buyerId, sellerId, orderStatus])
+  @@index([orderNumber])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id                  String   @id @default(uuid())
+  orderId             String
+  productListingId    String
+  quantityOrdered     Float
+  pricePerUnitAtOrder Float
+  subtotal            Float
+  createdAt           DateTime @default(now())
+
+  // Relations
+
+  order          Order          @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
+  productListing ProductListing @relation("ProductOrderItems", fields: [productListingId], references: [id])
+
+  @@index([orderId])
+  @@index([productListingId])
+}
+
+// =====================================================
+// ORDER STATUS HISTORY
+// =====================================================
+
+model OrderStatusHistory {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  notes     String?  @db.Text
+  changedBy String
+  user      User     @relation(fields: [changedBy], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([changedBy])
+  @@index([createdAt])
+}
+
+// =====================================================
+// REVIEWS / RATINGS
+// =====================================================
+
+model Review {
+  id                 String   @id @default(uuid())
+  reviewerId         String
+  reviewedEntityId   String
+  reviewedEntityType String
+  rating             Int
+  comment            String?
+  reviewDate         DateTime @default(now())
+  isApprovedByAdmin  Boolean  @default(true)
+  createdAt          DateTime @default(now())
+
+  // Relations
+
+  reviewer          User              @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+  reviewedUser      User?             @relation("ReviewedUserReviews", fields: [reviewedEntityId], references: [id], map: "fk_review_user")
+  reviewedProduct   ProductListing?   @relation("ProductReviews", fields: [reviewedEntityId], references: [id], map: "fk_review_product")
+  reviewedStorage   StorageListing?   @relation("StorageReviews", fields: [reviewedEntityId], references: [id], map: "fk_review_storage")
+  reviewedTransport TransportListing? @relation("TransportReviews", fields: [reviewedEntityId], references: [id], map: "fk_review_transport")
+
+  @@index([reviewerId])
+  @@index([reviewedEntityId, reviewedEntityType])
+}
+
+model UserRating {
+  id          String   @id @default(uuid())
+  reviewerId  String
+  reviewedId  String
+  rating      Int
+  comment     String?
+  createdAt   DateTime @default(now())
+  isModerated Boolean  @default(false)
+
+  reviewer User @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewed User @relation("Reviewed", fields: [reviewedId], references: [id])
+
+  @@index([reviewerId, reviewedId])
+}
+
+// =====================================================
+// MESSAGING
+// =====================================================
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String
+  senderId       String
+  receiverId     String
+  messageContent String
+  sentAt         DateTime  @default(now())
+  readAt         DateTime?
+
+  // Relations
+
+  sender   User @relation("SenderMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceiverMessages", fields: [receiverId], references: [id])
+
+  @@index([conversationId])
+  @@index([senderId, receiverId])
+}
+
+// =====================================================
+// DOCUMENTS
+// =====================================================
+
+model Document {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            String
+  fileName        String
+  fileUrl         String
+  fileKey         String?
+  fileSize        Int?
+  mimeType        String?
+  relatedEntityId String?
+  status          DocumentStatus @default(PENDING_REVIEW)
+  rejectionReason String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+}
+
+// =====================================================
+// NOTIFICATIONS
+// =====================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// =====================================================
+// PAYMENTS / ESCROW / LEDGER
+// =====================================================
+
+model PaymentTransaction {
+  id                String    @id @default(uuid())
+  buyerId           String
+  sellerId          String
+  amount            Decimal   @db.Decimal(18, 2)
+  currency          String    @default("AOA")
+  status            String    @default("PENDING")
+  type              String? // PAYMENT, REFUND, WITHDRAWAL, DEPOSIT
+  buyerConfirmed    Boolean   @default(false)
+  sellerConfirmed   Boolean   @default(false)
+  escrowHeldAt      DateTime?
+  releasedAt        DateTime?
+  providerPaymentId String?
+  providerChargeId  String?
+  idempotencyKey    String?   @unique
+  metadata          String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  buyer         User                @relation("Buyer", fields: [buyerId], references: [id])
+  seller        User                @relation("Seller", fields: [sellerId], references: [id])
+  escrow        EscrowTransaction?  @relation("PaymentEscrow")
+  ledgerEntries TransactionLedger[]
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([idempotencyKey])
+  @@index([createdAt])
+}
+
+model EscrowTransaction {
+  id                   String             @id @default(cuid())
+  paymentTransactionId String             @unique
+  paymentTransaction   PaymentTransaction @relation("PaymentEscrow", fields: [paymentTransactionId], references: [id])
+  milestone            String?
+  status               EscrowStatus       @default(HELD)
+  releaseDate          DateTime?
+  releasedBy           String?
+  createdAt            DateTime           @default(now())
+
+  @@index([paymentTransactionId])
+  @@index([status])
+}
+
+model TransactionLedger {
+  id            String             @id @default(cuid())
+  transactionId String
+  transaction   PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User               @relation(fields: [userId], references: [id])
+  accountType   String // WALLET, ESCROW, REVENUE
+  entryType     String // DEBIT, CREDIT
+  amount        Float
+  balance       Float
+  description   String
+  createdAt     DateTime           @default(now())
+
+  @@index([transactionId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PaymentReference {
+  id          String        @id @default(cuid())
+  reference   String        @unique
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  operationId String?
+  amount      Float
+  status      PaymentStatus @default(PENDING)
+  confirmedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([reference])
+  @@index([userId])
+  @@index([status])
+}
+
+model WalletBalance {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  balance   Decimal  @default("0") @db.Decimal(18, 2)
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// =====================================================
+// TRANSFORMATION FACILITIES & BOOKINGS
+// =====================================================
+
+model TransformationFacility {
+  id             String            @id @default(cuid())
+  name           String
+  location       String
+  serviceType    String
+  capacity       Float
+  processingRate Float             @default(0)
+  isActive       Boolean           @default(true)
+  ownerId        String
+  owner          User              @relation("OwnerFacilities", fields: [ownerId], references: [id])
+  bookings       FacilityBooking[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([ownerId])
+  @@index([isActive])
+}
+
+model FacilityBooking {
+  id              String                 @id @default(cuid())
+  facilityId      String
+  facility        TransformationFacility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User                   @relation(fields: [userId], references: [id])
+  serviceType     String
+  startDate       DateTime
+  endDate         DateTime
+  actualStartDate DateTime?
+  actualEndDate   DateTime?
+  quantity        Float                  @default(0)
+  inputProduct    String
+  desiredOutput   String
+  notes           String?                @db.Text
+  status          BookingStatus          @default(PENDING)
+  totalCost       Float
+  currency        String                 @default("AOA")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([facilityId])
+  @@index([userId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+// =====================================================
+// PRODUCTION PLANNING SYSTEM
+// =====================================================
+
+model ProductionPlan {
+  id                   String           @id @default(cuid())
+  producerId           String
+  producer             User             @relation("ProductionPlans", fields: [producerId], references: [id], onDelete: Cascade)
+  productName          String
+  productCategory      String
+  variety              String?
+  areaSize             Float
+  areaUnit             String           @default("HECTARES")
+  location             String
+  coordinates          String?
+  estimatedQuantity    Float
+  quantityUnit         String
+  estimatedYield       Float?
+  plantingDate         DateTime
+  estimatedHarvestDate DateTime
+  actualHarvestDate    DateTime?
+  status               ProductionStatus @default(PLANNED)
+  isPublic             Boolean          @default(true)
+  allowPreOrders       Boolean          @default(false)
+  description          String?          @db.Text
+  farmingMethod        String?
+  certifications       String[]
+  images               String[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  schedules   ProductionSchedule[]
+  updates     ProductionUpdate[]
+  subscribers ProductionSubscriber[]
+  preOrders   PreOrder[]
+
+  @@index([producerId])
+  @@index([status])
+  @@index([estimatedHarvestDate])
+  @@index([isPublic])
+}
+
+model ProductionSchedule {
+  id               String         @id @default(cuid())
+  productionPlanId String
+  productionPlan   ProductionPlan @relation(fields: [productionPlanId], references: [id], onDelete: Cascade)
+  milestoneName    String
+  milestoneType    MilestoneType
+  description      String?        @db.Text
+  scheduledDate    DateTime
+  completedDate    DateTime?
+  status           ScheduleStatus @default(PENDING)
+  notifyBefore     Int            @default(0)
+  notificationSent Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([productionPlanId])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+model ProductionUpdate {
+  id                 String         @id @default(cuid())
+  productionPlanId   String
+  productionPlan     ProductionPlan @relation(fields: [productionPlanId], references: [id], onDelete: Cascade)
+  updateType         UpdateType
+  title              String
+  description        String         @db.Text
+  images             String[]
+  currentGrowthStage String?
+  healthStatus       String?
+  quantityAdjustment Float?
+  dateAdjustment     DateTime?
+  createdBy          String
+  user               User           @relation(fields: [createdBy], references: [id])
+  createdAt          DateTime       @default(now())
+
+  @@index([productionPlanId])
+  @@index([createdAt])
+}
+
+model ProductionSubscriber {
+  id                 String         @id @default(cuid())
+  productionPlanId   String
+  productionPlan     ProductionPlan @relation(fields: [productionPlanId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifyOnUpdate     Boolean        @default(true)
+  notifyOnMilestone  Boolean        @default(true)
+  notify15DaysBefore Boolean        @default(true)
+  notify7DaysBefore  Boolean        @default(true)
+  notify1DayBefore   Boolean        @default(true)
+  notifyOnHarvest    Boolean        @default(true)
+  subscribedAt       DateTime       @default(now())
+
+  @@unique([productionPlanId, userId])
+  @@index([userId])
+}
+
+model PreOrder {
+  id                 String         @id @default(cuid())
+  productionPlanId   String
+  productionPlan     ProductionPlan @relation(fields: [productionPlanId], references: [id], onDelete: Cascade)
+  customerId         String
+  customer           User           @relation(fields: [customerId], references: [id])
+  quantity           Float
+  pricePerUnit       Float?
+  totalPrice         Float?
+  status             PreOrderStatus @default(PENDING)
+  depositAmount      Float?
+  depositPaid        Boolean        @default(false)
+  notes              String?        @db.Text
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  convertedToOrderId String?        @unique
+  convertedToOrder   Order?         @relation(fields: [convertedToOrderId], references: [id])
+
+  @@index([productionPlanId])
+  @@index([customerId])
+  @@index([status])
+}
+
+// =====================================================
+// OFFERINGS / SCHEDULING
+// =====================================================
+
+model Offering {
+  id          String             @id @default(cuid())
+  title       String
+  description String?
+  ownerId     String
+  owner       User               @relation(fields: [ownerId], references: [id])
+  schedules   OfferingSchedule[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([ownerId])
+}
+
+model OfferingSchedule {
+  id         String        @id @default(cuid())
+  offeringId String
+  offering   Offering      @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  startTime  DateTime
+  endTime    DateTime
+  bookedById String?
+  bookedBy   User?         @relation(fields: [bookedById], references: [id])
+  status     BookingStatus @default(PENDING)
+  notes      String?       @db.Text
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([offeringId])
+  @@index([startTime, endTime])
+  @@index([bookedById])
+}
+
+// =====================================================
+// AUDIT LOGS
+// =====================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// =====================================================
+// PROCUREMENT
+// =====================================================
+
+model Supplier {
+  id         String      @id @default(cuid())
+  name       String
+  contact    String
+  location   String
+  createdAt  DateTime    @default(now())
+  components Component[]
+}
+
+model Component {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  specs       String   @db.Text
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  stockLevel  Int
+  unitPrice   Float
+  requestedBy String?
+  requester   User?    @relation("RequestedComponents", fields: [requestedBy], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([supplierId])
+  @@index([category])
+  @@index([requestedBy])
+}
