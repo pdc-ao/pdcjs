@@ -40,3 +40,15 @@ body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:#111}
   .hero{padding:36px 12px}
   .brand-name{display:none}
 }
+
+.hidden {
+  display: none !important;
+}
+
+.auth-panel {
+  transition: opacity 0.3s ease;
+}
+.auth-panel.hidden {
+  display: none !important;
+  opacity: 0;
+}

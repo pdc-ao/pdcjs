@@ -15,7 +15,6 @@
     </a>
     <nav class="main-nav">
       <a href="index.html">Início</a>
-      <a href="products.html">Produtos</a>
     </nav>
   </div>
 </header>
@@ -28,6 +27,7 @@
     <button class="tab-btn" data-target="register">Registrar</button>
   </div>
 
+  <!-- Login Panel -->
   <div id="login" class="auth-panel">
     <form id="loginForm">
       <label>Email<input name="email" type="email" required /></label>
@@ -36,10 +36,11 @@
         <button type="submit" class="btn btn-primary">Entrar (Demo)</button>
       </div>
       <div id="loginError" class="form-error" aria-live="polite"></div>
-      <p class="muted">Nota: Esta página suporta demonstração local (client-side). Para usar a autenticação do servidor, acesse a sua rota de login do backend.</p>
+      <p class="muted">Esta página suporta demonstração local. Para autenticação real, conecte ao backend.</p>
     </form>
   </div>
 
+  <!-- Register Panel -->
   <div id="register" class="auth-panel hidden">
     <form id="registerForm">
       <div class="toggle-type">
@@ -153,20 +154,14 @@
         document.getElementById('registerError').textContent = 'Preencha todos os campos';
         return;
       }
-      userData = {
-        type: 'person',
-        fullName, email, password: pw, role
-      };
+      userData = { type: 'person', fullName, email, password: pw, role };
     } else {
       const companyName = fd.get('companyName'), contactPerson = fd.get('contactPerson'), email = fd.get('email'), role = fd.get('role');
       if (!companyName || !contactPerson || !email || !pw || !role) {
         document.getElementById('registerError').textContent = 'Preencha todos os campos';
         return;
       }
-      userData = {
-        type: 'company',
-        companyName, contactPerson, email, password: pw, role
-      };
+      userData = { type: 'company', companyName, contactPerson, email, password: pw, role };
     }
 
     const storeKey = 'agri_users_demo';
