@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — AgriConnect Angola</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .dashboard-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .dashboard-nav a {
+      text-decoration: none;
+    }
+  </style>
 </head>
 <body>
 <header class="site-header">
@@ -33,7 +44,10 @@
   </nav>
 
   <section id="dashboardContent" class="dashboard-content">
-    <div class="muted">Selecione uma seção no menu acima. As páginas de perfil e ferramentas do dashboard (produtor/consumidor/transportador/armazenador/admin) estão disponíveis como páginas separadas estáticas neste pacote.</div>
+    <div class="muted">
+      Selecione uma seção no menu acima. As páginas de perfil e ferramentas do dashboard
+      (produtor/consumidor/transportador/armazenador/admin) estão disponíveis como páginas separadas.
+    </div>
   </section>
 </main>
 
@@ -43,26 +57,38 @@
   </div>
 </footer>
 
-<script src="js/app.js"></script>
 <script>
   document.getElementById('yearDash').innerText = new Date().getFullYear();
 
-  // Setup dashboard links based on demo session (localStorage) or server session
+  function getDemoSession() {
+    try {
+      return JSON.parse(localStorage.getItem('agri_user'));
+    } catch {
+      return null;
+    }
+  }
+
   (function initDashboard() {
-    const user = getDemoSession(); // from app.js
+    const user = getDemoSession();
     const userInfo = document.getElementById('userInfo');
     const nav = document.getElementById('dashboardNav');
+    const authNav = document.getElementById('authNav');
 
     if (!user) {
-      userInfo.innerHTML = 'Sessão demo não encontrada. <a href="auth.html">Entrar</a> (modo demo)';
-      document.getElementById('authNav').textContent = 'Entrar';
+      userInfo.innerHTML = 'Sessão não encontrada. <a href="auth.html">Entrar</a> (modo demo)';
+      authNav.textContent = 'Entrar';
       nav.innerHTML = '';
       return;
     }
 
-    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+    userInfo.textContent = `${user.name || user.fullName || user.companyName || user.email} — ${user.role}`;
+    authNav.textContent = 'Sair';
+    authNav.addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.removeItem('agri_user');
+      location.href = 'auth.html';
+    });
 
-    // Common links
     const links = [
       { href: 'dashboard-products.html', label: 'Meus Produtos', roles: ['PRODUCER'] },
       { href: 'dashboard-orders.html', label: 'Pedidos', roles: ['PRODUCER','CONSUMER','STORAGE_OWNER','TRANSPORTER','TRANSFORMER'] },
