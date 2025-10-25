@@ -14,10 +14,9 @@
       <span class="brand-name">AgriConnect Angola</span>
     </a>
     <nav class="main-nav" id="mainNav">
-      <a href="products.html">Produtos</a>
-      <a href="transport.html">Transporte</a>
-      <a href="storage.html">Armazenamento</a>
       <a href="auth.html" id="authLink">Entrar / Registrar</a>
+      <a href="about.html">Sobre Nós</a>
+      <a href="contact.html">Contactos</a>
     </nav>
   </div>
 </header>
@@ -29,7 +28,7 @@
       <p class="lead">A maior plataforma digital agrícola de Angola. Conecte-se com produtores, encontre armazenamento e transporte.</p>
       <div class="cta">
         <a class="btn btn-primary" href="auth.html">Começar Agora</a>
-        <a class="btn btn-outline" href="products.html">Ver Produtos</a>
+        <!-- <a class="btn btn-outline" href="products.html">Ver Produtos</a> -->
       </div>
     </div>
   </section>
@@ -77,6 +76,27 @@
   </section>
 </main>
 
+<section class="about container">
+  <h2>Sobre Nós</h2>
+  <p>
+    A <strong>AgriConnect Angola</strong> é uma plataforma digital que conecta produtores, consumidores, transportadores e operadores logísticos em todo o país. Nosso objetivo é facilitar o comércio agrícola, promover a transparência nas transações e fortalecer a cadeia de valor rural com soluções digitais acessíveis.
+  </p>
+  <p>
+    Acreditamos no poder da tecnologia para transformar o setor agrícola angolano, promovendo inclusão financeira, rastreabilidade e eficiência logística.
+  </p>
+</section>
+
+<!-- ✅ CONTACTOS -->
+<section class="contact container">
+  <h2>Contactos</h2>
+  <p>Tem dúvidas ou sugestões? Fale conosco:</p>
+  <ul>
+    <li>Email: <a href="mailto:suporte@agriconnect.ao">suporte@agriconnect.ao</a></li>
+    <li>Telefone: +244 923 000 000</li>
+    <li>Endereço: Rua das Acácias, Luanda, Angola</li>
+  </ul>
+</section>
+
 <footer class="site-footer">
   <div class="container">
     <p>© <span id="yearHome"></span> AgriConnect Angola — Todos os direitos reservados.</p>
@@ -100,26 +120,8 @@
         msg.textContent = 'Nenhum produto disponível no momento.';
         return;
       }
-      products.forEach(p => {
-        const card = document.createElement('article');
-        card.className = 'card';
-        card.innerHTML = `
-            <div class="card-body">
-              <h3 class="card-title">${escapeHtml(p.title || '—')}</h3>
-              <p class="card-desc">${escapeHtml((p.description || '').slice(0,120))}</p>
-              <div class="card-meta"><div class="badge">${escapeHtml(p.category || '')}</div>
-              <div class="rating">${p.producer?.averageRating ? '★ ' + Number(p.producer.averageRating).toFixed(1) : ''}</div></div>
-            </div>
-            <div class="card-footer">
-              <div class="price">${p.pricePerUnit} ${p.currency || 'AOA'}/${p.unitOfMeasure || ''}</div>
-              <div class="actions">
-                <a class="btn btn-sm btn-primary" href="product.html?id=${encodeURIComponent(p.id)}">Ver</a>
-                <a class="btn btn-sm" href="auth.html">Contactar</a>
-              </div>
-            </div>
-          `;
-        container.appendChild(card);
-      });
+      products.forEach(p => container.appendChild(renderProductCard(p)));
+
     } catch (e) {
       container.innerHTML = '';
       msg.textContent = 'Erro carregando produtos (funcional offline).';

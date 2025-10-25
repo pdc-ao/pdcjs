@@ -42,26 +42,45 @@
 
   <div id="register" class="auth-panel hidden">
     <form id="registerForm">
-      <label>Nome de usuário<input name="username" required /></label>
-      <label>Email<input name="email" type="email" required /></label>
-      <label>Nome completo<input name="fullName" /></label>
-      <label>Senha<input name="password" type="password" required /></label>
-      <label>Confirmar senha<input name="confirmPassword" type="password" required /></label>
-      <label>Tipo de usuário
-        <select name="role" required>
-          <option value="">Selecione</option>
-          <option value="PRODUCER">Produtor</option>
-          <option value="CONSUMER">Consumidor</option>
-          <option value="STORAGE_OWNER">Proprietário de Armazém</option>
-          <option value="TRANSPORTER">Transportador</option>
-          <option value="TRANSFORMER">Transformador</option>
-        </select>
-      </label>
+      <div class="toggle-type">
+        <label><input type="radio" name="regType" value="person" checked /> Pessoa</label>
+        <label><input type="radio" name="regType" value="company" /> Empresa</label>
+      </div>
+
+      <div id="personFields">
+        <label>Nome completo<input name="fullName" required /></label>
+        <label>Email<input name="email" type="email" required /></label>
+        <label>Senha<input name="password" type="password" required /></label>
+        <label>Confirmar senha<input name="confirmPassword" type="password" required /></label>
+        <label>Tipo de usuário
+          <select name="role" required>
+            <option value="">Selecione</option>
+            <option value="PRODUCER">Produtor</option>
+            <option value="CONSUMER">Consumidor</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="companyFields" style="display:none;">
+        <label>Nome da empresa<input name="companyName" required /></label>
+        <label>Responsável<input name="contactPerson" required /></label>
+        <label>Email<input name="email" type="email" required /></label>
+        <label>Senha<input name="password" type="password" required /></label>
+        <label>Confirmar senha<input name="confirmPassword" type="password" required /></label>
+        <label>Tipo de usuário
+          <select name="role" required>
+            <option value="">Selecione</option>
+            <option value="STORAGE_OWNER">Proprietário de Armazém</option>
+            <option value="TRANSPORTER">Transportador</option>
+            <option value="TRANSFORMER">Transformador</option>
+          </select>
+        </label>
+      </div>
+
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Registrar (Demo)</button>
+        <button type="submit" class="btn btn-primary">Registrar</button>
       </div>
       <div id="registerError" class="form-error" aria-live="polite"></div>
-      <p class="muted">Nota: Registro demo apenas salva localmente. Para registrar no servidor, o backend aceita POST /api/users.</p>
     </form>
   </div>
 </main>
@@ -75,7 +94,8 @@
 <script src="js/app.js"></script>
 <script>
   document.getElementById('yearAuth').innerText = new Date().getFullYear();
-  // tabs
+
+  // Tabs
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -85,13 +105,27 @@
     });
   });
 
-  // demo local auth (no server)
+  // Toggle registration type
+  const personFields = document.getElementById('personFields');
+  const companyFields = document.getElementById('companyFields');
+  document.querySelectorAll('input[name="regType"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (radio.value === 'person') {
+        personFields.style.display = 'block';
+        companyFields.style.display = 'none';
+      } else {
+        personFields.style.display = 'none';
+        companyFields.style.display = 'block';
+      }
+    });
+  });
+
+  // Login (demo)
   const loginForm = document.getElementById('loginForm');
   loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const email = fd.get('email'), password = fd.get('password');
-    // demo: accept any non-empty credentials and save to localStorage
     if (!email || !password) {
       document.getElementById('loginError').textContent = 'Preencha todos os campos';
       return;
@@ -100,23 +134,44 @@
     location.href = 'index.html';
   });
 
+  // Register (demo)
   const registerForm = document.getElementById('registerForm');
   registerForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const username = fd.get('username'), email = fd.get('email'), pw = fd.get('password'), cpw = fd.get('confirmPassword'), role = fd.get('role');
-    if (!username || !email || !pw || !cpw || !role) {
-      document.getElementById('registerError').textContent = 'Preencha todos os campos';
-      return;
-    }
+    const type = fd.get('regType');
+    const pw = fd.get('password'), cpw = fd.get('confirmPassword');
     if (pw !== cpw) {
       document.getElementById('registerError').textContent = 'Senhas não coincidem';
       return;
     }
-    // Demo: store user in localStorage list
+
+    let userData = {};
+    if (type === 'person') {
+      const fullName = fd.get('fullName'), email = fd.get('email'), role = fd.get('role');
+      if (!fullName || !email || !pw || !role) {
+        document.getElementById('registerError').textContent = 'Preencha todos os campos';
+        return;
+      }
+      userData = {
+        type: 'person',
+        fullName, email, password: pw, role
+      };
+    } else {
+      const companyName = fd.get('companyName'), contactPerson = fd.get('contactPerson'), email = fd.get('email'), role = fd.get('role');
+      if (!companyName || !contactPerson || !email || !pw || !role) {
+        document.getElementById('registerError').textContent = 'Preencha todos os campos';
+        return;
+      }
+      userData = {
+        type: 'company',
+        companyName, contactPerson, email, password: pw, role
+      };
+    }
+
     const storeKey = 'agri_users_demo';
     const users = JSON.parse(localStorage.getItem(storeKey) || '[]');
-    users.push({ id: Date.now().toString(), username, email, fullName: fd.get('fullName') || '', role });
+    users.push({ id: Date.now().toString(), ...userData });
     localStorage.setItem(storeKey, JSON.stringify(users));
     alert('Registrado (demo). Use Entrar para simular sessão.');
     document.querySelector('.tab-btn[data-target="login"]').click();
