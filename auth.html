@@ -117,9 +117,17 @@
       if (radio.value === 'person') {
         personFields.style.display = 'block';
         companyFields.style.display = 'none';
+        // disable required on company fields
+        companyFields.querySelectorAll('input, select').forEach(el => el.required = false);
+        // enable required on person fields
+        personFields.querySelectorAll('input, select').forEach(el => el.required = true);
       } else {
         personFields.style.display = 'none';
         companyFields.style.display = 'block';
+        // disable required on person fields
+        personFields.querySelectorAll('input, select').forEach(el => el.required = false);
+        // enable required on company fields
+        companyFields.querySelectorAll('input, select').forEach(el => el.required = true);
       }
     });
   });
