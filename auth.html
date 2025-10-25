@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Entrar / Registrar — AgriConnect Angola</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .hidden { display: none !important; }
+  </style>
 </head>
 <body>
 <header class="site-header">
@@ -49,30 +52,27 @@
       </div>
 
       <div id="personFields">
-        <label>Nome completo<input name="fullName" required /></label>
-        <label>Email<input name="email" type="email" required /></label>
-        <label>Senha<input name="password" type="password" required /></label>
-        <label>Confirmar senha<input name="confirmPassword" type="password" required /></label>
+        <label>Nome completo<input name="fullName" /></label>
+        <label>Email<input name="email" type="email" /></label>
+        <label>Senha<input name="password" type="password" /></label>
+        <label>Confirmar senha<input name="confirmPassword" type="password" /></label>
         <label>Tipo de usuário
-          <select name="role" required>
+          <select name="role">
             <option value="">Selecione</option>
             <option value="PRODUCER">Produtor</option>
             <option value="CONSUMER">Consumidor</option>
-            <option value="STORAGE_OWNER">Proprietário de Armazém</option>
-            <option value="TRANSPORTER">Transportador</option>
-            <option value="TRANSFORMER">Transformador</option>
           </select>
         </label>
       </div>
 
       <div id="companyFields" style="display:none;">
-        <label>Nome da empresa<input name="companyName" required /></label>
-        <label>Responsável<input name="contactPerson" required /></label>
-        <label>Email<input name="email" type="email" required /></label>
-        <label>Senha<input name="password" type="password" required /></label>
-        <label>Confirmar senha<input name="confirmPassword" type="password" required /></label>
+        <label>Nome da empresa<input name="companyName" /></label>
+        <label>Responsável<input name="contactPerson" /></label>
+        <label>Email<input name="email" type="email" /></label>
+        <label>Senha<input name="password" type="password" /></label>
+        <label>Confirmar senha<input name="confirmPassword" type="password" /></label>
         <label>Tipo de usuário
-          <select name="role" required>
+          <select name="role">
             <option value="">Selecione</option>
             <option value="STORAGE_OWNER">Proprietário de Armazém</option>
             <option value="TRANSPORTER">Transportador</option>
@@ -109,28 +109,40 @@
     });
   });
 
-  // Toggle registration type
+  // Toggle registration type + required attributes
   const personFields = document.getElementById('personFields');
   const companyFields = document.getElementById('companyFields');
-  document.querySelectorAll('input[name="regType"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      if (radio.value === 'person') {
-        personFields.style.display = 'block';
-        companyFields.style.display = 'none';
-        // disable required on company fields
-        companyFields.querySelectorAll('input, select').forEach(el => el.required = false);
-        // enable required on person fields
-        personFields.querySelectorAll('input, select').forEach(el => el.required = true);
+
+  function setRequired(container, isRequired) {
+    container.querySelectorAll('input, select').forEach(el => {
+      if (isRequired) {
+        el.setAttribute('required', 'required');
       } else {
-        personFields.style.display = 'none';
-        companyFields.style.display = 'block';
-        // disable required on person fields
-        personFields.querySelectorAll('input, select').forEach(el => el.required = false);
-        // enable required on company fields
-        companyFields.querySelectorAll('input, select').forEach(el => el.required = true);
+        el.removeAttribute('required');
       }
     });
+  }
+
+  function toggleRegType(type) {
+    if (type === 'person') {
+      personFields.style.display = 'block';
+      companyFields.style.display = 'none';
+      setRequired(personFields, true);
+      setRequired(companyFields, false);
+    } else {
+      personFields.style.display = 'none';
+      companyFields.style.display = 'block';
+      setRequired(personFields, false);
+      setRequired(companyFields, true);
+    }
+  }
+
+  document.querySelectorAll('input[name="regType"]').forEach(radio => {
+    radio.addEventListener('change', () => toggleRegType(radio.value));
   });
+
+  // Initialize defaults
+  toggleRegType('person');
 
   // Login (demo)
   const loginForm = document.getElementById('loginForm');
@@ -143,10 +155,11 @@
       return;
     }
     localStorage.setItem('agri_user', JSON.stringify({ email, role: 'CONSUMER', name: email }));
-    location.href = 'dashboard.html';
+    const redirect = new URLSearchParams(window.location.search).get('redirect') || 'dashboard.html';
+    location.href = redirect;
   });
 
-  // ✅ Register (demo) — put this at the bottom
+  // Register (demo)
   const registerForm = document.getElementById('registerForm');
   registerForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -161,19 +174,22 @@
 
     let userData = {};
     if (type === 'person') {
-      const fullName = fd.get('fullName'), email = fd.get('email'), role = fd.get('role');
-      if (!fullName || !email || !pw || !role) {
-        document.getElementById('registerError').textContent = 'Preencha todos os campos';
-        return;
-      }
-      userData = { type: 'person', fullName, email, password: pw, role };
+      userData = {
+        type: 'person',
+        fullName: fd.get('fullName'),
+        email: fd.get('email'),
+        password: pw,
+        role: fd.get('role')
+      };
     } else {
-      const companyName = fd.get('companyName'), contactPerson = fd.get('contactPerson'), email = fd.get('email'), role = fd.get('role');
-      if (!companyName || !contactPerson || !email || !pw || !role) {
-        document.getElementById('registerError').textContent = 'Preencha todos os campos';
-        return;
-      }
-      userData = { type: 'company', companyName, contactPerson, email, password: pw, role };
+      userData = {
+        type: 'company',
+        companyName: fd.get('companyName'),
+        contactPerson: fd.get('contactPerson'),
+        email: fd.get('email'),
+        password: pw,
+        role: fd.get('role')
+      };
     }
 
     const storeKey = 'agri_users_demo';
@@ -181,12 +197,10 @@
     users.push({ id: Date.now().toString(), ...userData });
     localStorage.setItem(storeKey, JSON.stringify(users));
 
-    // Success feedback
     const msg = document.getElementById('registerError');
     msg.style.color = 'green';
     msg.textContent = 'Registrado com sucesso (demo). Agora faça login.';
 
-    // Switch back to login tab
     document.querySelector('.tab-btn[data-target="login"]').click();
   });
 </script>
