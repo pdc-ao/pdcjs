@@ -58,6 +58,9 @@
             <option value="">Selecione</option>
             <option value="PRODUCER">Produtor</option>
             <option value="CONSUMER">Consumidor</option>
+            <option value="STORAGE_OWNER">Proprietário de Armazém</option>
+            <option value="TRANSPORTER">Transportador</option>
+            <option value="TRANSFORMER">Transformador</option>
           </select>
         </label>
       </div>
@@ -96,7 +99,7 @@
 <script>
   document.getElementById('yearAuth').innerText = new Date().getFullYear();
 
-  // Tabs
+  // Tabs switching
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -132,16 +135,17 @@
       return;
     }
     localStorage.setItem('agri_user', JSON.stringify({ email, role: 'CONSUMER', name: email }));
-    location.href = 'index.html';
+    location.href = 'dashboard.html';
   });
 
-  // Register (demo)
+  // ✅ Register (demo) — put this at the bottom
   const registerForm = document.getElementById('registerForm');
   registerForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
+    const fd = new FormData(registerForm);
     const type = fd.get('regType');
     const pw = fd.get('password'), cpw = fd.get('confirmPassword');
+
     if (pw !== cpw) {
       document.getElementById('registerError').textContent = 'Senhas não coincidem';
       return;
@@ -168,9 +172,16 @@
     const users = JSON.parse(localStorage.getItem(storeKey) || '[]');
     users.push({ id: Date.now().toString(), ...userData });
     localStorage.setItem(storeKey, JSON.stringify(users));
-    alert('Registrado (demo). Use Entrar para simular sessão.');
+
+    // Success feedback
+    const msg = document.getElementById('registerError');
+    msg.style.color = 'green';
+    msg.textContent = 'Registrado com sucesso (demo). Agora faça login.';
+
+    // Switch back to login tab
     document.querySelector('.tab-btn[data-target="login"]').click();
   });
 </script>
+
 </body>
 </html>
