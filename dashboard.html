@@ -6,14 +6,36 @@
   <title>Dashboard — AgriConnect Angola</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    .dashboard-nav {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin: 20px 0;
+    .dashboard-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      margin-top: 20px;
     }
-    .dashboard-nav a {
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .card h2 {
+      font-weight: 600;
+      margin: 0 0 10px;
+    }
+    .card ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .card li {
+      margin-bottom: 6px;
+    }
+    .card a {
+      color: var(--accent);
       text-decoration: none;
+    }
+    .card a:hover {
+      text-decoration: underline;
     }
     .dashboard-header {
       display: flex;
@@ -45,14 +67,9 @@
     <div id="userInfo" class="muted">Carregando...</div>
   </div>
 
-  <nav class="dashboard-nav" id="dashboardNav">
-    <!-- role-specific links injected here -->
-  </nav>
-
-  <section id="dashboardContent" class="dashboard-content">
-    <div class="muted">
-      Selecione uma seção no menu acima. As páginas de perfil e ferramentas do dashboard
-      (produtor/consumidor/transportador/armazenador/admin) estão disponíveis como páginas separadas.
+  <section id="dashboardContent">
+    <div class="dashboard-grid" id="dashboardGrid">
+      <!-- Cards injected here -->
     </div>
   </section>
 </main>
@@ -77,13 +94,13 @@
   (function initDashboard() {
     const user = getDemoSession();
     const userInfo = document.getElementById('userInfo');
-    const nav = document.getElementById('dashboardNav');
     const authNav = document.getElementById('authNav');
+    const grid = document.getElementById('dashboardGrid');
 
     if (!user) {
       userInfo.innerHTML = 'Sessão não encontrada. <a href="auth.html">Entrar</a> (modo demo)';
       authNav.textContent = 'Entrar';
-      nav.innerHTML = '';
+      grid.innerHTML = '';
       return;
     }
 
@@ -95,26 +112,67 @@
       location.href = 'auth.html';
     });
 
-    const links = [
-      { href: 'dashboard-products.html', label: 'Meus Produtos', roles: ['PRODUCER'] },
-      { href: 'dashboard-orders.html', label: 'Pedidos', roles: ['PRODUCER','CONSUMER','STORAGE_OWNER','TRANSPORTER','TRANSFORMER'] },
-      { href: 'dashboard-facilities.html', label: 'Instalações', roles: ['TRANSFORMER'] },
-      { href: 'dashboard-storage.html', label: 'Armazéns', roles: ['STORAGE_OWNER'] },
-      { href: 'dashboard-transport.html', label: 'Transportes', roles: ['TRANSPORTER'] },
-      { href: 'dashboard-wallet.html', label: 'Carteira', roles: ['PRODUCER','CONSUMER','STORAGE_OWNER','TRANSPORTER','TRANSFORMER'] },
-      { href: 'dashboard-messages.html', label: 'Mensagens', roles: ['PRODUCER','CONSUMER','STORAGE_OWNER','TRANSPORTER','TRANSFORMER','ADMIN'] },
-      { href: 'dashboard-admin.html', label: 'Admin', roles: ['ADMIN'] },
+    // Always show General + Actions
+    const cards = [
+      {
+        title: 'Geral',
+        links: [
+          { href: 'products.html', label: 'Explorar Produtos' },
+          { href: 'dashboard-transport.html', label: 'Serviços de Transporte' },
+          { href: 'dashboard-storage.html', label: 'Instalações de Armazenamento' }
+        ]
+      },
+      {
+        title: 'Ações',
+        links: [
+          { href: 'dashboard-storage-new.html', label: 'Criar Novo Armazém' },
+          { href: 'products.html', label: 'Criar / Gerir Produtos' }
+        ]
+      }
     ];
 
-    nav.innerHTML = '';
-    links.forEach(l => {
-      if (l.roles.includes(user.role)) {
-        const a = document.createElement('a');
-        a.href = l.href;
-        a.className = 'btn btn-outline';
-        a.textContent = l.label;
-        nav.appendChild(a);
-      }
+    // Role-specific
+    if (user.role === 'PRODUCER') {
+      cards.push({
+        title: 'Ferramentas do Produtor',
+        links: [
+          { href: 'dashboard-products.html', label: 'Meus Produtos' },
+          { href: 'dashboard-storage-new.html', label: 'Adicionar Armazém' }
+        ]
+      });
+    }
+
+    if (user.role === 'TRANSPORTER') {
+      cards.push({
+        title: 'Ferramentas do Transportador',
+        links: [
+          { href: 'dashboard-transport.html', label: 'Meus Transportes' }
+        ]
+      });
+    }
+
+    if (user.role === 'ADMIN') {
+      cards.push({
+        title: 'Administração',
+        links: [
+          { href: 'dashboard-users.html', label: 'Gerir Utilizadores' },
+          { href: 'dashboard-orders.html', label: 'Gerir Pedidos' }
+        ]
+      });
+    }
+
+    // Render cards
+    grid.innerHTML = '';
+    cards.forEach(card => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML = `
+        <h2>${card.title}</h2>
+        <ul>
+          ${card.links.map(l => `<li><a href="${l.href}">${l.label}</a></li>`).join('')}
+        </ul>
+      `;
+      grid.appendChild(div);
     });
   })();
 </script>
