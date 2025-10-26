@@ -6,175 +6,103 @@
   <title>Dashboard — AgriConnect Angola</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    .dashboard-grid {
-      display: grid;
-      gap: 16px;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      margin-top: 20px;
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-    }
-    .card h2 {
-      font-weight: 600;
-      margin: 0 0 10px;
-    }
-    .card ul {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-    .card li {
-      margin-bottom: 6px;
-    }
-    .card a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .card a:hover {
-      text-decoration: underline;
-    }
-    .dashboard-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
   </style>
 </head>
 <body>
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="brand" href="index.html">
-      <span class="logo">A</span>
-      <span class="brand-name">AgriConnect Angola</span>
-    </a>
-    <nav class="main-nav">
-      <a href="index.html">Início</a>
-      <a href="products.html">Produtos</a>
-      <a href="dashboard.html" class="active">Dashboard</a>
-      <a href="auth.html" id="authNav">Entrar</a>
-    </nav>
-  </div>
-</header>
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html" class="active">📊 Dashboard</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+</div>
 
-<main class="container dashboard-page">
-  <div class="dashboard-header">
-    <h1>Dashboard</h1>
-    <div id="userInfo" class="muted">Carregando...</div>
+<div class="main">
+  <h1>Dashboard</h1>
+  <p id="userInfo">Carregando sessão...</p>
+
+  <div class="card">
+    <h2>Geral</h2>
+    <ul>
+      <li><a href="products.html">Explorar Produtos</a></li>
+      <li><a href="dashboard-transport.html">Serviços de Transporte</a></li>
+      <li><a href="dashboard-storage.html">Instalações de Armazenamento</a></li>
+    </ul>
   </div>
 
-  <section id="dashboardContent">
-    <div class="dashboard-grid" id="dashboardGrid">
-      <!-- Cards injected here -->
-    </div>
-  </section>
-</main>
-
-<footer class="site-footer">
-  <div class="container">
-    <p>© <span id="yearDash"></span> AgriConnect Angola</p>
+  <div class="card">
+    <h2>Ações</h2>
+    <ul>
+      <li><a href="dashboard-storage-new.html">Criar Novo Armazém</a></li>
+      <li><a href="dashboard-products.html">Criar / Gerir Produtos</a></li>
+    </ul>
   </div>
-</footer>
+
+  <div id="roleSpecific"></div>
+</div>
 
 <script>
-  document.getElementById('yearDash').innerText = new Date().getFullYear();
+  // Load user session
+  const user = JSON.parse(localStorage.getItem('agri_user'));
+  const userInfo = document.getElementById('userInfo');
+  const roleSpecific = document.getElementById('roleSpecific');
 
-  function getDemoSession() {
-    try {
-      return JSON.parse(localStorage.getItem('agri_user'));
-    } catch {
-      return null;
+  if (!user) {
+    userInfo.innerHTML = 'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
+  } else {
+    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+
+    // Role-specific cards
+    if (user.role === 'PRODUCER') {
+      roleSpecific.innerHTML = `
+        <div class="card">
+          <h2>Ferramentas do Produtor</h2>
+          <ul>
+            <li><a href="dashboard-products.html">Meus Produtos</a></li>
+            <li><a href="dashboard-storage-new.html">Adicionar Armazém</a></li>
+          </ul>
+        </div>`;
+    }
+    if (user.role === 'TRANSPORTER') {
+      roleSpecific.innerHTML = `
+        <div class="card">
+          <h2>Ferramentas do Transportador</h2>
+          <ul>
+            <li><a href="dashboard-transport.html">Meus Transportes</a></li>
+          </ul>
+        </div>`;
+    }
+    if (user.role === 'ADMIN') {
+      roleSpecific.innerHTML = `
+        <div class="card">
+          <h2>Administração</h2>
+          <ul>
+            <li><a href="dashboard-users.html">Gerir Utilizadores</a></li>
+            <li><a href="dashboard-orders.html">Gerir Pedidos</a></li>
+          </ul>
+        </div>`;
     }
   }
 
-  (function initDashboard() {
-    const user = getDemoSession();
-    const userInfo = document.getElementById('userInfo');
-    const authNav = document.getElementById('authNav');
-    const grid = document.getElementById('dashboardGrid');
-
-    if (!user) {
-      userInfo.innerHTML = 'Sessão não encontrada. <a href="auth.html">Entrar</a> (modo demo)';
-      authNav.textContent = 'Entrar';
-      grid.innerHTML = '';
-      return;
-    }
-
-    userInfo.textContent = `${user.name || user.fullName || user.companyName || user.email} — ${user.role}`;
-    authNav.textContent = 'Sair';
-    authNav.addEventListener('click', (e) => {
-      e.preventDefault();
-      localStorage.removeItem('agri_user');
-      location.href = 'auth.html';
-    });
-
-    // Always show General + Actions
-    const cards = [
-      {
-        title: 'Geral',
-        links: [
-          { href: 'products.html', label: 'Explorar Produtos' },
-          { href: 'dashboard-transport.html', label: 'Serviços de Transporte' },
-          { href: 'dashboard-storage.html', label: 'Instalações de Armazenamento' }
-        ]
-      },
-      {
-        title: 'Ações',
-        links: [
-          { href: 'dashboard-storage-new.html', label: 'Criar Novo Armazém' },
-          { href: 'products.html', label: 'Criar / Gerir Produtos' }
-        ]
-      }
-    ];
-
-    // Role-specific
-    if (user.role === 'PRODUCER') {
-      cards.push({
-        title: 'Ferramentas do Produtor',
-        links: [
-          { href: 'dashboard-products.html', label: 'Meus Produtos' },
-          { href: 'dashboard-storage-new.html', label: 'Adicionar Armazém' }
-        ]
-      });
-    }
-
-    if (user.role === 'TRANSPORTER') {
-      cards.push({
-        title: 'Ferramentas do Transportador',
-        links: [
-          { href: 'dashboard-transport.html', label: 'Meus Transportes' }
-        ]
-      });
-    }
-
-    if (user.role === 'ADMIN') {
-      cards.push({
-        title: 'Administração',
-        links: [
-          { href: 'dashboard-users.html', label: 'Gerir Utilizadores' },
-          { href: 'dashboard-orders.html', label: 'Gerir Pedidos' }
-        ]
-      });
-    }
-
-    // Render cards
-    grid.innerHTML = '';
-    cards.forEach(card => {
-      const div = document.createElement('div');
-      div.className = 'card';
-      div.innerHTML = `
-        <h2>${card.title}</h2>
-        <ul>
-          ${card.links.map(l => `<li><a href="${l.href}">${l.label}</a></li>`).join('')}
-        </ul>
-      `;
-      grid.appendChild(div);
-    });
-  })();
+  // Logout
+  document.getElementById('logoutBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.removeItem('agri_user');
+    location.href = 'auth.html';
+  });
 </script>
 </body>
 </html>
