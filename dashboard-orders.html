@@ -3,42 +3,66 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pedidos — Dashboard</title>
+  <title>Dashboard — Produtos</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+<!-- Sidebar -->
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html" class="active">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+</div>
 
-<main class="container">
-  <h1>Pedidos</h1>
-  <div id="ordersList" class="grid cards-grid"></div>
-  <div id="ordersMsg" class="muted"></div>
-</main>
+<!-- Main -->
+<div class="main">
+  <h1>Produtos</h1>
+  <p id="userInfo">Carregando sessão...</p>
 
-<footer class="site-footer"><div class="container">© <span id="yearOrders"></span> AgriConnect Angola</div></footer>
+  <div class="card">
+    <h2>Minhas Listagens</h2>
+    <table>
+      <thead>
+      <tr><th>Produto</th><th>Preço</th><th>Quantidade</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody>
+      <tr><td>Maçãs</td><td>2.00/kg</td><td>100kg</td><td>Ativo</td><td>[Editar] [Desativar]</td></tr>
+      </tbody>
+    </table>
+    <button class="btn btn-primary">Adicionar Novo Produto</button>
+  </div>
 
-<script src="js/app.js"></script>
+  <div class="card">
+    <h2>Explorar Produtos</h2>
+    <input type="text" placeholder="Pesquisar..." />
+    <ul>
+      <li>Bananas — Produtor João — 1.50/kg [Ver]</li>
+      <li>Milho — Produtor Ana — 0.80/kg [Ver]</li>
+    </ul>
+  </div>
+</div>
+
 <script>
-  document.getElementById('yearOrders').innerText = new Date().getFullYear();
-  (async function loadOrders() {
-    const user = getDemoSession();
-    if (!user) {
-      document.getElementById('ordersList').innerHTML = '<div class="muted">Faça login (demo) para ver pedidos.</div>';
-      return;
-    }
-    try {
-      const orders = await fetchJSON(`/api/orders?buyerId=${encodeURIComponent(user.id)}`).catch(()=>[]);
-      const grid = document.getElementById('ordersList'); grid.innerHTML = '';
-      if (!orders || orders.length === 0) { document.getElementById('ordersMsg').textContent='Nenhum pedido encontrado.'; return; }
-      orders.forEach(o => {
-        const el = document.createElement('div'); el.className='card';
-        el.innerHTML = `<div><h3 class="card-title">Pedido #${escapeHtml(o.id.slice(0,8))}</h3><p class="card-desc">${escapeHtml(o.orderStatus)}</p></div><div class="card-footer"><div class="muted">${new Date(o.orderDate).toLocaleDateString()}</div><div class="price">${o.totalAmount} ${o.currency}</div></div>`;
-        grid.appendChild(el);
-      });
-    } catch (err) {
-      document.getElementById('ordersList').innerHTML = '<div class="muted">Erro ao carregar pedidos</div>';
-    }
-  })();
+  const user = JSON.parse(localStorage.getItem('agri_user'));
+  const userInfo = document.getElementById('userInfo');
+  if (!user) {
+    userInfo.innerHTML = 'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
+  } else {
+    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+  }
+  document.getElementById('logoutBtn').addEventListener('click', e => {
+    e.preventDefault(); localStorage.removeItem('agri_user'); location.href='auth.html';
+  });
 </script>
 </body>
 </html>
