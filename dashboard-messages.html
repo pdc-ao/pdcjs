@@ -3,89 +3,122 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard — Mensagens</title>
+  <title>Mensagens — Dashboard</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .chat-container { display: flex; height: 80vh; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .conversations { width: 30%; border-right: 1px solid var(--border); overflow-y: auto; }
+    .conversation { padding: 0.75rem; cursor: pointer; border-bottom: 1px solid var(--border); }
+    .conversation:hover { background: #f5f5f5; }
+    .messages { flex: 1; display: flex; flex-direction: column; }
+    .messages-list { flex: 1; padding: 1rem; overflow-y: auto; }
+    .message { margin-bottom: 0.5rem; }
+    .message.me { text-align: right; }
+    .message .bubble { display: inline-block; padding: 0.5rem 0.75rem; border-radius: 12px; max-width: 70%; }
+    .message.me .bubble { background: var(--accent); color: #fff; }
+    .message.them .bubble { background: #eee; }
+    .message-form { display: flex; border-top: 1px solid var(--border); }
+    .message-form input { flex: 1; padding: 0.5rem; border: none; }
+    .message-form button { padding: 0.5rem 1rem; border: none; background: var(--accent); color: #fff; cursor: pointer; }
+  </style>
 </head>
 <body>
-<div class="sidebar">
-  <!-- same sidebar links -->
-</div>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a>
+  </div>
+</header>
 
-<div class="main">
+<main class="container">
   <h1>Mensagens</h1>
-  <p id="userInfo">Carregando sessão...</p>
-
-  <div class="card">
-    <h2>Conversas</h2>
-    <ul id="conversationList"></ul>
+  <div class="chat-container">
+    <div class="conversations" id="conversations"></div>
+    <div class="messages">
+      <div class="messages-list" id="messagesList">Selecione uma conversa</div>
+      <form id="messageForm" class="message-form">
+        <input type="text" id="messageInput" placeholder="Escreva uma mensagem..." />
+        <button type="submit">Enviar</button>
+      </form>
+    </div>
   </div>
+</main>
 
-  <div class="card">
-    <h2>Enviar Mensagem</h2>
-    <form id="messageForm">
-      <label>Para: <input type="text" name="receiver" required /></label><br/>
-      <label>Mensagem: <textarea name="content" rows="3" required></textarea></label><br/>
-      <button class="btn btn-primary" type="submit">Enviar</button>
-    </form>
-  </div>
-</div>
+<footer class="site-footer">
+  <div class="container">© <span id="yearMsg"></span> AgriConnect Angola</div>
+</footer>
 
-<script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+<script src="js/app.js"></script>
+<script>
+  document.getElementById('yearMsg').innerText = new Date().getFullYear();
 
-  const user = getSession();
-  renderUserInfo('#userInfo');
+  const user = getDemoSession(); // from app.js
+  let currentConversationId = null;
+  let currentReceiverId = null;
+  let pollInterval = null;
 
-  document.getElementById('logoutBtn').addEventListener('click', e => {
-    e.preventDefault();
-    logout();
-  });
-
-  const messagesKey = 'agri_messages_demo';
-  const conversationList = document.getElementById('conversationList');
-  const messageForm = document.getElementById('messageForm');
-
-  function renderConversations() {
-    const messages = getData(messagesKey);
+  async function loadConversations() {
+    const res = await fetch(`/api/messages?senderId=${encodeURIComponent(user.id)}`);
+    const data = await res.json();
+    const convs = document.getElementById('conversations');
+    convs.innerHTML = '';
     const grouped = {};
-
-    messages.forEach(msg => {
-      const other = msg.senderId === user.email ? msg.receiverId : msg.senderId;
-      if (!grouped[other]) grouped[other] = [];
-      grouped[other].push(msg);
+    data.messages.forEach(m => {
+      grouped[m.conversationId] = m;
     });
-
-    conversationList.innerHTML = '';
-    Object.entries(grouped).forEach(([partner, msgs]) => {
-      const last = msgs[msgs.length - 1];
-      const li = document.createElement('li');
-      li.innerHTML = `<strong>${partner}</strong> — Última: "${last.messageContent}" <button onclick="alert('Abrir conversa com ${partner}')">Abrir</button>`;
-      conversationList.appendChild(li);
+    Object.values(grouped).forEach(m => {
+      const other = m.senderId === user.id ? m.receiver : m.sender;
+      const el = document.createElement('div');
+      el.className = 'conversation';
+      el.textContent = other.fullName || other.username || other.id;
+      el.onclick = () => openConversation(other.id, m.conversationId);
+      convs.appendChild(el);
     });
   }
 
-  messageForm.addEventListener('submit', e => {
+  async function openConversation(receiverId, conversationId) {
+    currentReceiverId = receiverId;
+    currentConversationId = conversationId;
+    await loadMessages();
+
+    // Clear any existing polling loop
+    if (pollInterval) clearInterval(pollInterval);
+    // Start polling every 5 seconds
+    pollInterval = setInterval(loadMessages, 5000);
+  }
+
+  async function loadMessages() {
+    if (!currentReceiverId || !currentConversationId) return;
+    const res = await fetch(`/api/messages?senderId=${user.id}&receiverId=${currentReceiverId}&conversationId=${currentConversationId}&limit=100`);
+    const data = await res.json();
+    const list = document.getElementById('messagesList');
+    list.innerHTML = '';
+    data.messages.forEach(m => {
+      const mine = m.senderId === user.id;
+      const div = document.createElement('div');
+      div.className = 'message ' + (mine ? 'me' : 'them');
+      div.innerHTML = `<div class="bubble">${escapeHtml(m.messageContent)}</div>`;
+      list.appendChild(div);
+    });
+    list.scrollTop = list.scrollHeight;
+  }
+
+  document.getElementById('messageForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(messageForm);
-    const newMessage = {
-      id: Date.now().toString(),
-      senderId: user.email,
-      receiverId: fd.get('receiver'),
-      messageContent: fd.get('content'),
-      sentAt: new Date().toISOString()
-    };
-    addItem(messagesKey, newMessage);
-    messageForm.reset();
-    renderConversations();
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    if (!text || !currentReceiverId) return;
+    const res = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receiverId: currentReceiverId, messageContent: text, conversationId: currentConversationId })
+    });
+    if (res.ok) {
+      input.value = '';
+      await loadMessages(); // refresh immediately after sending
+    }
   });
 
-  renderConversations();
+  loadConversations();
 </script>
 </body>
 </html>
