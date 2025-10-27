@@ -3,51 +3,106 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Carteira — Dashboard</title>
+  <title>Dashboard — Pagamentos</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html" class="active">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+</div>
 
-<main class="container">
+<div class="main">
   <h1>Carteira</h1>
-  <div id="walletSummary" class="grid stats-grid">
-    <div class="stat-card"><div class="stat-value" id="walletBalance">—</div><div class="stat-label">Saldo</div></div>
-    <div class="stat-card"><div class="stat-value" id="pendingEscrow">—</div><div class="stat-label">Em Escrow</div></div>
+  <p id="userInfo">Carregando sessão...</p>
+
+  <div class="card">
+    <h2>Transações Recentes</h2>
+    <table>
+      <thead>
+        <tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Status</th></tr>
+      </thead>
+      <tbody id="transactionTableBody"></tbody>
+    </table>
   </div>
 
-  <section>
-    <h2>Transações Recentes</h2>
-    <div id="walletTx" class="grid cards-grid"></div>
-  </section>
-</main>
+  <div class="card">
+    <h2>Enviar Pagamento</h2>
+    <form id="paymentForm">
+      <label>Para (email ou ID): <input type="text" name="receiver" required /></label><br/>
+      <label>Valor (AOA): <input type="number" name="amount" required /></label><br/>
+      <label>Descrição: <input type="text" name="description" /></label><br/>
+      <button class="btn btn-primary" type="submit">Enviar</button>
+    </form>
+  </div>
+</div>
 
-<footer class="site-footer"><div class="container">© <span id="yearWallet"></span> AgriConnect Angola</div></footer>
+<script type="module">
+  import {
+    getSession,
+    logout,
+    getData,
+    addItem,
+    renderUserInfo
+  } from './js/dashboard.js';
 
-<script src="js/app.js"></script>
-<script>
-  document.getElementById('yearWallet').innerText = new Date().getFullYear();
-  (async function loadWallet() {
-    const user = getDemoSession();
-    if (!user) {
-      document.getElementById('walletTx').innerHTML = '<div class="muted">Faça login (demo) para ver sua carteira.</div>';
-      return;
-    }
-    try {
-      const txs = await fetchJSON(`/api/wallet/transactions/${encodeURIComponent(user.id)}`).catch(()=>[]);
-      const bal = await fetchJSON(`/api/wallet/${encodeURIComponent(user.id)}`).catch(()=>null);
-      document.getElementById('walletBalance').textContent = bal ? (bal.balance + ' AOA') : '—';
-      document.getElementById('pendingEscrow').textContent = txs ? txs.filter(t=>['FUNDED','PENDING'].includes(t.status)).length : '—';
-      const grid = document.getElementById('walletTx'); grid.innerHTML = '';
-      (txs || []).slice(0,10).forEach(t => {
-        const el = document.createElement('div'); el.className='card';
-        el.innerHTML = `<div><h3 class="card-title">${escapeHtml(t.id.slice(0,8))}</h3><p class="card-desc">${escapeHtml(t.status)}</p></div><div class="card-footer"><div class="muted">${new Date(t.createdAt).toLocaleDateString()}</div><div class="price">${t.amount} ${t.currency}</div></div>`;
-        grid.appendChild(el);
-      });
-    } catch (err) {
-      document.getElementById('walletTx').innerHTML = '<div class="muted">Erro ao carregar transações</div>';
-    }
-  })();
+  const user = getSession();
+  renderUserInfo('#userInfo');
+
+  document.getElementById('logoutBtn').addEventListener('click', e => {
+    e.preventDefault();
+    logout();
+  });
+
+  const paymentsKey = 'agri_payments_demo';
+  const transactionTableBody = document.getElementById('transactionTableBody');
+  const paymentForm = document.getElementById('paymentForm');
+
+  function renderTransactions() {
+    const txns = getData(paymentsKey);
+    transactionTableBody.innerHTML = '';
+    txns.filter(t => t.sender === user.email || t.receiver === user.email).forEach(t => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${new Date(t.date).toLocaleDateString()}</td>
+        <td>${t.description}</td>
+        <td>${t.sender === user.email ? 'Saída' : 'Entrada'}</td>
+        <td>AOA ${t.amount.toFixed(2)}</td>
+        <td>${t.status}</td>
+      `;
+      transactionTableBody.appendChild(row);
+    });
+  }
+
+  paymentForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const fd = new FormData(paymentForm);
+    const newTxn = {
+      id: Date.now().toString(),
+      sender: user.email,
+      receiver: fd.get('receiver'),
+      amount: parseFloat(fd.get('amount')),
+      description: fd.get('description') || 'Pagamento manual',
+      status: 'Confirmado',
+      date: new Date().toISOString()
+    };
+    addItem(paymentsKey, newTxn);
+    paymentForm.reset();
+    renderTransactions();
+  });
+
+  renderTransactions();
 </script>
 </body>
 </html>

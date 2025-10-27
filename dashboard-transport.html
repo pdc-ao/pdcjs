@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard — Armazenamento</title>
+  <title>Dashboard — Transporte</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -25,34 +25,33 @@
 </div>
 
 <div class="main">
-  <h1>Armazenamento</h1>
+  <h1>Transporte</h1>
   <p id="userInfo">Carregando sessão...</p>
 
   <div class="card">
-    <h2>Meus Armazéns</h2>
+    <h2>Meus Serviços de Transporte</h2>
     <table>
       <thead>
-        <tr><th>Nome</th><th>Tipo</th><th>Capacidade</th><th>Status</th><th>Ações</th></tr>
+        <tr><th>Serviço</th><th>Veículo</th><th>Rotas</th><th>Status</th><th>Ações</th></tr>
       </thead>
-      <tbody id="storageTableBody"></tbody>
+      <tbody id="transportTableBody"></tbody>
     </table>
   </div>
 
   <div class="card">
-    <h2>Adicionar Novo Armazém</h2>
-    <form id="storageForm">
-      <label>Nome da Instalação: <input type="text" name="name" required /></label><br/>
-      <label>Tipo de Armazenamento: <input type="text" name="type" value="Frigorífico" required /></label><br/>
-      <label>Capacidade (toneladas): <input type="number" name="capacity" required /></label><br/>
+    <h2>Adicionar Novo Serviço</h2>
+    <form id="transportForm">
+      <label>Título do Serviço: <input type="text" name="title" required /></label><br/>
+      <label>Tipo de Veículo: <input type="text" name="vehicle" value="Caminhão Frigorífico" required /></label><br/>
+      <label>Rotas Operacionais: <input type="text" name="routes" required /></label><br/>
       <label>Status: 
         <select name="status">
           <option value="Disponível">Disponível</option>
-          <option value="Parcialmente Disponível">Parcialmente Disponível</option>
-          <option value="Cheio">Cheio</option>
+          <option value="Em Viagem">Em Viagem</option>
           <option value="Indisponível">Indisponível</option>
         </select>
       </label><br/>
-      <button class="btn btn-primary" type="submit">Publicar Armazém</button>
+      <button class="btn btn-primary" type="submit">Publicar Serviço</button>
     </form>
   </div>
 </div>
@@ -74,43 +73,43 @@
     logout();
   });
 
-  const storageKey = 'agri_storage_demo';
-  const storageTableBody = document.getElementById('storageTableBody');
-  const storageForm = document.getElementById('storageForm');
+  const transportKey = 'agri_transport_demo';
+  const transportTableBody = document.getElementById('transportTableBody');
+  const transportForm = document.getElementById('transportForm');
 
-  function renderStorage() {
-    const listings = getData(storageKey);
-    storageTableBody.innerHTML = '';
-    listings.filter(s => s.ownerId === user.email).forEach(s => {
+  function renderTransport() {
+    const listings = getData(transportKey);
+    transportTableBody.innerHTML = '';
+    listings.filter(t => t.transporterId === user.email).forEach(t => {
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td>${s.name}</td>
-        <td>${s.type}</td>
-        <td>${s.capacity} t</td>
-        <td>${s.status}</td>
-        <td><button onclick="alert('Editar: ${s.id}')">Editar</button></td>
+        <td>${t.title}</td>
+        <td>${t.vehicle}</td>
+        <td>${t.routes}</td>
+        <td>${t.status}</td>
+        <td><button onclick="alert('Editar: ${t.id}')">Editar</button></td>
       `;
-      storageTableBody.appendChild(row);
+      transportTableBody.appendChild(row);
     });
   }
 
-  storageForm.addEventListener('submit', e => {
+  transportForm.addEventListener('submit', e => {
     e.preventDefault();
-    const fd = new FormData(storageForm);
-    const newStorage = {
+    const fd = new FormData(transportForm);
+    const newTransport = {
       id: Date.now().toString(),
-      ownerId: user.email,
-      name: fd.get('name'),
-      type: fd.get('type'),
-      capacity: parseFloat(fd.get('capacity')),
+      transporterId: user.email,
+      title: fd.get('title'),
+      vehicle: fd.get('vehicle'),
+      routes: fd.get('routes'),
       status: fd.get('status')
     };
-    addItem(storageKey, newStorage);
-    storageForm.reset();
-    renderStorage();
+    addItem(transportKey, newTransport);
+    transportForm.reset();
+    renderTransport();
   });
 
-  renderStorage();
+  renderTransport();
 </script>
 </body>
 </html>

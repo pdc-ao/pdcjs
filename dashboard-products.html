@@ -5,13 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Produtos</title>
   <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
-    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
-    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
-    .main { margin-left:240px; padding:20px; }
-    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
-  </style>
 </head>
 <body>
 <div class="sidebar">
@@ -36,30 +29,82 @@
 
   <div class="card">
     <h2>Minhas Listagens</h2>
-    <p>Aqui o produtor pode ver e gerir os seus produtos.</p>
-    <button class="btn btn-primary">Adicionar Novo Produto</button>
+    <table>
+      <thead>
+        <tr><th>Produto</th><th>Preço</th><th>Quantidade</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="productTableBody"></tbody>
+    </table>
   </div>
 
   <div class="card">
-    <h2>Explorar Produtos</h2>
-    <p>Consumidores podem procurar e comprar produtos aqui.</p>
+    <h2>Adicionar Novo Produto</h2>
+    <form id="productForm">
+      <label>Título: <input type="text" name="title" required /></label><br/>
+      <label>Preço por unidade: <input type="number" name="price" required /></label><br/>
+      <label>Unidade: <input type="text" name="unit" value="kg" required /></label><br/>
+      <label>Quantidade disponível: <input type="number" name="quantity" required /></label><br/>
+      <button class="btn btn-primary" type="submit">Publicar Produto</button>
+    </form>
   </div>
 </div>
 
-<script>
-  const user = JSON.parse(localStorage.getItem('agri_user'));
-  const userInfo = document.getElementById('userInfo');
-  if (!user) {
-    userInfo.innerHTML = 'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
-  } else {
-    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+<script type="module">
+  import {
+    getSession,
+    logout,
+    getData,
+    setData,
+    addItem,
+    renderUserInfo
+  } from './js/dashboard.js';
+
+  const user = getSession();
+  renderUserInfo('#userInfo');
+
+  document.getElementById('logoutBtn').addEventListener('click', e => {
+    e.preventDefault();
+    logout();
+  });
+
+  const productsKey = 'agri_products_demo';
+  const productTableBody = document.getElementById('productTableBody');
+  const productForm = document.getElementById('productForm');
+
+  function renderProducts() {
+    const products = getData(productsKey);
+    productTableBody.innerHTML = '';
+    products.filter(p => p.producerId === user.email).forEach(p => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${p.title}</td>
+        <td>${p.price}/${p.unit}</td>
+        <td>${p.quantity}</td>
+        <td>${p.status}</td>
+        <td><button onclick="alert('Editar produto: ${p.id}')">Editar</button></td>
+      `;
+      productTableBody.appendChild(row);
+    });
   }
 
-  document.getElementById('logoutBtn').addEventListener('click', (e) => {
+  productForm.addEventListener('submit', e => {
     e.preventDefault();
-    localStorage.removeItem('agri_user');
-    location.href = 'auth.html';
+    const fd = new FormData(productForm);
+    const newProduct = {
+      id: Date.now().toString(),
+      producerId: user.email,
+      title: fd.get('title'),
+      price: parseFloat(fd.get('price')),
+      unit: fd.get('unit'),
+      quantity: parseFloat(fd.get('quantity')),
+      status: 'Ativo'
+    };
+    addItem(productsKey, newProduct);
+    productForm.reset();
+    renderProducts();
   });
+
+  renderProducts();
 </script>
 </body>
 </html>

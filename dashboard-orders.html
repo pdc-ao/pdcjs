@@ -3,11 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard — Produtos</title>
+  <title>Dashboard — Pedidos</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<!-- Sidebar -->
 <div class="sidebar">
   <h2>AgriConnect</h2>
   <a href="dashboard.html">📊 Dashboard</a>
@@ -21,48 +20,106 @@
   <a href="dashboard-wallet.html">💳 Pagamentos</a>
   <a href="dashboard-notifications.html">🔔 Notificações</a>
   <a href="dashboard-admin.html">🛠️ Admin</a>
-  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>debar links -->
 </div>
 
-<!-- Main -->
 <div class="main">
-  <h1>Produtos</h1>
+  <h1>Pedidos</h1>
   <p id="userInfo">Carregando sessão...</p>
 
   <div class="card">
-    <h2>Minhas Listagens</h2>
+    <h2>Pedidos Recebidos</h2>
     <table>
       <thead>
-      <tr><th>Produto</th><th>Preço</th><th>Quantidade</th><th>Status</th><th>Ações</th></tr>
+        <tr><th>ID</th><th>Cliente</th><th>Produto</th><th>Quantidade</th><th>Status</th><th>Ações</th></tr>
       </thead>
-      <tbody>
-      <tr><td>Maçãs</td><td>2.00/kg</td><td>100kg</td><td>Ativo</td><td>[Editar] [Desativar]</td></tr>
-      </tbody>
+      <tbody id="receivedOrdersTable"></tbody>
     </table>
-    <button class="btn btn-primary">Adicionar Novo Produto</button>
   </div>
 
   <div class="card">
-    <h2>Explorar Produtos</h2>
-    <input type="text" placeholder="Pesquisar..." />
-    <ul>
-      <li>Bananas — Produtor João — 1.50/kg [Ver]</li>
-      <li>Milho — Produtor Ana — 0.80/kg [Ver]</li>
-    </ul>
+    <h2>Meus Pedidos</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="myOrdersTable"></tbody>
+    </table>
+    <button class="btn btn-primary" onclick="simulateOrder()">Simular Novo Pedido</button>
   </div>
 </div>
 
-<script>
-  const user = JSON.parse(localStorage.getItem('agri_user'));
-  const userInfo = document.getElementById('userInfo');
-  if (!user) {
-    userInfo.innerHTML = 'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
-  } else {
-    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
-  }
+<script type="module">
+  import {
+    getSession,
+    logout,
+    getData,
+    setData,
+    updateItem,
+    addItem,
+    renderUserInfo
+  } from './js/dashboard.js';
+
+  const user = getSession();
+  renderUserInfo('#userInfo');
+
   document.getElementById('logoutBtn').addEventListener('click', e => {
-    e.preventDefault(); localStorage.removeItem('agri_user'); location.href='auth.html';
+    e.preventDefault();
+    logout();
   });
+
+  const ordersKey = 'agri_orders_demo';
+  const receivedTable = document.getElementById('receivedOrdersTable');
+  const myTable = document.getElementById('myOrdersTable');
+
+  function renderOrders() {
+    const orders = getData(ordersKey);
+    receivedTable.innerHTML = '';
+    myTable.innerHTML = '';
+
+    orders.forEach(order => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${order.id}</td>
+        <td>${order.buyer}</td>
+        <td>${order.product}</td>
+        <td>${order.quantity}</td>
+        <td>${order.status}</td>
+        <td>${order.sellerId === user.email
+          ? `<button onclick="confirmOrder('${order.id}')">Confirmar</button>`
+          : `<button onclick="alert('Ver pedido ${order.id}')">Ver</button>`}
+        </td>
+      `;
+      if (order.sellerId === user.email) {
+        receivedTable.appendChild(row);
+      }
+      if (order.buyerId === user.email) {
+        myTable.appendChild(row);
+      }
+    });
+  }
+
+  function confirmOrder(id) {
+    updateItem(ordersKey, id, { status: 'Confirmado' });
+    renderOrders();
+  }
+
+  function simulateOrder() {
+    const newOrder = {
+      id: 'ORD-' + Date.now(),
+      buyerId: user.email,
+      buyer: user.name || user.email,
+      sellerId: 'joao@agriconnect.ao',
+      seller: 'João',
+      product: 'Milho',
+      quantity: 10,
+      status: 'Pendente'
+    };
+    addItem(ordersKey, newOrder);
+    renderOrders();
+  }
+
+  renderOrders();
 </script>
 </body>
 </html>

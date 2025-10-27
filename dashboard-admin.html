@@ -3,62 +3,148 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin Dashboard — AgriConnect Angola</title>
+  <title>Dashboard — Administração</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect Angola</span></a>
-    <nav class="main-nav"><a href="dashboard.html">Dashboard</a><a href="products.html">Produtos</a><a href="auth.html">Entrar</a></nav>
+<div class="sidebar">
+  <!-- same sidebar links -->
+</div>
+
+<div class="main">
+  <h1>Administração</h1>
+  <p id="userInfo">Carregando sessão...</p>
+
+  <div class="card">
+    <h2>Usuários Pendentes</h2>
+    <table>
+      <thead>
+        <tr><th>Email</th><th>Função</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="userTableBody"></tbody>
+    </table>
   </div>
-</header>
 
-<main class="container">
-  <h1>Admin</h1>
-  <p class="muted" id="adminUser">Carregando...</p>
+  <div class="card">
+    <h2>Documentos para Revisão</h2>
+    <table>
+      <thead>
+        <tr><th>Usuário</th><th>Tipo</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody id="documentTableBody"></tbody>
+    </table>
+  </div>
 
-  <section class="grid stats-grid" id="adminStats">
-    <div class="stat-card"><div class="stat-value" id="totalUsers">—</div><div class="stat-label">Usuários</div></div>
-    <div class="stat-card"><div class="stat-value" id="totalProducts">—</div><div class="stat-label">Produtos</div></div>
-    <div class="stat-card"><div class="stat-value" id="pendingDocs">—</div><div class="stat-label">Documentos Pend.</div></div>
-  </section>
+  <div class="card">
+    <h2>Pagamentos Recentes</h2>
+    <table>
+      <thead>
+        <tr><th>De</th><th>Para</th><th>Valor</th><th>Status</th></tr>
+      </thead>
+      <tbody id="paymentTableBody"></tbody>
+    </table>
+  </div>
+</div>
 
-  <section>
-    <h2>Ferramentas</h2>
-    <div class="grid features-grid">
-      <a class="feature-card" href="admin-users.html"><div class="feature-emoji">👥</div><h3>Gerir Usuários</h3></a>
-      <a class="feature-card" href="admin-verification.html"><div class="feature-emoji">✅</div><h3>Verificações</h3></a>
-      <a class="feature-card" href="dashboard-orders.html"><div class="feature-emoji">📦</div><h3>Pedidos</h3></a>
-    </div>
-  </section>
-</main>
+<script type="module">
+  import {
+    getSession,
+    logout,
+    getData,
+    updateItem,
+    renderUserInfo
+  } from './js/dashboard.js';
 
-<footer class="site-footer">
-  <div class="container">© <span id="yearAdmin"></span> AgriConnect Angola</div>
-</footer>
+  const user = getSession();
+  renderUserInfo('#userInfo');
 
-<script src="js/app.js"></script>
-<script>
-  document.getElementById('yearAdmin').innerText = new Date().getFullYear();
+  document.getElementById('logoutBtn').addEventListener('click', e => {
+    e.preventDefault();
+    logout();
+  });
 
-  (async function loadAdminData() {
-    const user = getDemoSession();
-    document.getElementById('adminUser').textContent = user ? `${user.name || user.email} — ${user.role}` : 'Sessão demo';
-    try {
-      // Try to fetch real data, fall back gracefully
-      const users = await fetchJSON('/api/users').catch(()=>[]);
-      document.getElementById('totalUsers').textContent = users.length || '—';
-      const productsResp = await fetchJSON('/api/products?page=1&limit=1').catch(()=>({ products: [] }));
-      document.getElementById('totalProducts').textContent = productsResp?.pagination?.total ?? (productsResp.products ? productsResp.products.length : '—');
-      const docs = await fetchJSON('/api/verification/documents?status=PENDING_REVIEW').catch(()=>[]);
-      document.getElementById('pendingDocs').textContent = Array.isArray(docs) ? docs.length : (docs.total || '—');
-    } catch (e) {
-      document.getElementById('totalUsers').textContent = '—';
-      document.getElementById('totalProducts').textContent = '—';
-      document.getElementById('pendingDocs').textContent = '—';
-    }
-  })();
+  const usersKey = 'agri_users_demo';
+  const documentsKey = 'agri_documents_demo';
+  const paymentsKey = 'agri_payments_demo';
+
+  const userTableBody = document.getElementById('userTableBody');
+  const documentTableBody = document.getElementById('documentTableBody');
+  const paymentTableBody = document.getElementById('paymentTableBody');
+
+  function renderUsers() {
+    const users = getData(usersKey);
+    userTableBody.innerHTML = '';
+    users.filter(u => u.verificationStatus === 'Pendente').forEach(u => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${u.email}</td>
+        <td>${u.role}</td>
+        <td>${u.verificationStatus}</td>
+        <td>
+          <button onclick="verifyUser('${u.email}')">Aprovar</button>
+          <button onclick="rejectUser('${u.email}')">Rejeitar</button>
+        </td>
+      `;
+      userTableBody.appendChild(row);
+    });
+  }
+
+  function verifyUser(email) {
+    updateItem(usersKey, email, { verificationStatus: 'Verificado' });
+    renderUsers();
+  }
+
+  function rejectUser(email) {
+    updateItem(usersKey, email, { verificationStatus: 'Rejeitado' });
+    renderUsers();
+  }
+
+  function renderDocuments() {
+    const docs = getData(documentsKey);
+    documentTableBody.innerHTML = '';
+    docs.filter(d => d.status === 'Pendente').forEach(d => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${d.userId}</td>
+        <td>${d.type}</td>
+        <td>${d.status}</td>
+        <td>
+          <button onclick="approveDoc('${d.id}')">Aprovar</button>
+          <button onclick="rejectDoc('${d.id}')">Rejeitar</button>
+        </td>
+      `;
+      documentTableBody.appendChild(row);
+    });
+  }
+
+  function approveDoc(id) {
+    updateItem(documentsKey, id, { status: 'Aprovado' });
+    renderDocuments();
+  }
+
+  function rejectDoc(id) {
+    updateItem(documentsKey, id, { status: 'Rejeitado' });
+    renderDocuments();
+  }
+
+  function renderPayments() {
+    const txns = getData(paymentsKey);
+    paymentTableBody.innerHTML = '';
+    txns.forEach(t => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${t.sender}</td>
+        <td>${t.receiver}</td>
+        <td>AOA ${t.amount.toFixed(2)}</td>
+        <td>${t.status}</td>
+      `;
+      paymentTableBody.appendChild(row);
+    });
+  }
+
+  renderUsers();
+  renderDocuments();
+  renderPayments();
 </script>
 </body>
 </html>

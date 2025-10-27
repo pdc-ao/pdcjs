@@ -3,97 +3,89 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mensagens — Dashboard</title>
+  <title>Dashboard — Mensagens</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+<div class="sidebar">
+  <!-- same sidebar links -->
+</div>
 
-<main class="container">
+<div class="main">
   <h1>Mensagens</h1>
+  <p id="userInfo">Carregando sessão...</p>
 
-  <div class="grid" style="grid-template-columns:280px 1fr;gap:12px">
-    <aside id="conversations" style="min-height:300px;background:#fff;padding:12px;border-radius:10px;border:1px solid #eee"></aside>
-    <section id="conversationPane" style="min-height:300px;background:#fff;padding:12px;border-radius:10px;border:1px solid #eee">
-      <div id="convHeader" class="muted">Selecione uma conversa</div>
-      <div id="messagesList" style="margin-top:12px"></div>
-      <div id="messageComposer" style="margin-top:12px" class="hidden">
-        <textarea id="msgText" rows="3" style="width:100%;padding:8px;border:1px solid #eee;border-radius:8px"></textarea>
-        <div style="text-align:right;margin-top:8px"><button id="sendMsg" class="btn btn-primary">Enviar</button></div>
-      </div>
-    </section>
+  <div class="card">
+    <h2>Conversas</h2>
+    <ul id="conversationList"></ul>
   </div>
-</main>
 
-<footer class="site-footer"><div class="container">© <span id="yearMsg"></span> AgriConnect Angola</div></footer>
+  <div class="card">
+    <h2>Enviar Mensagem</h2>
+    <form id="messageForm">
+      <label>Para: <input type="text" name="receiver" required /></label><br/>
+      <label>Mensagem: <textarea name="content" rows="3" required></textarea></label><br/>
+      <button class="btn btn-primary" type="submit">Enviar</button>
+    </form>
+  </div>
+</div>
 
-<script src="js/app.js"></script>
-<script>
-  document.getElementById('yearMsg').innerText = new Date().getFullYear();
+<script type="module">
+  import {
+    getSession,
+    logout,
+    getData,
+    addItem,
+    renderUserInfo
+  } from './js/dashboard.js';
 
-  (async function loadConversations() {
-    const user = getDemoSession();
-    const convPane = document.getElementById('conversations');
-    if (!user) {
-      convPane.innerHTML = '<div class="muted">Faça login (demo) para usar mensagens.</div>';
-      return;
-    }
-    convPane.innerHTML = '<div class="loading">Carregando...</div>';
-    try {
-      const res = await fetchJSON(`/api/messages?senderId=${encodeURIComponent(user.id)}`);
-      const convId = res.conversationId || null;
-      const messages = res.messages || [];
-      // Build simple conversation list from messages (group by conversationId)
-      const map = {};
-      messages.forEach(m => {
-        if (!map[m.conversationId]) map[m.conversationId] = [];
-        map[m.conversationId].push(m);
-      });
-      convPane.innerHTML = '';
-      Object.keys(map).forEach(cid => {
-        const last = map[cid][map[cid].length-1];
-        const btn = document.createElement('button'); btn.className='tab-btn'; btn.textContent = `${last.sender.username !== user.email ? last.sender.username : last.receiver.username}: ${last.messageContent.slice(0,40)}`;
-        btn.addEventListener('click', () => openConversation(cid));
-        convPane.appendChild(btn);
-      });
-    } catch (err) {
-      convPane.innerHTML = '<div class="muted">Erro ao carregar conversas.</div>';
-    }
-  })();
+  const user = getSession();
+  renderUserInfo('#userInfo');
 
-  async function openConversation(conversationId) {
-    const user = getDemoSession();
-    if (!user) return;
-    document.getElementById('convHeader').textContent = 'Conversa ' + conversationId;
-    document.getElementById('messagesList').innerHTML = '<div class="loading">Carregando...</div>';
-    document.getElementById('messageComposer').classList.remove('hidden');
-    try {
-      const res = await fetchJSON(`/api/messages?conversationId=${encodeURIComponent(conversationId)}`);
-      const msgs = res.messages || [];
-      const list = document.getElementById('messagesList');
-      list.innerHTML = '';
-      msgs.forEach(m => {
-        const el = document.createElement('div'); el.className='card'; el.style.marginBottom='8px';
-        el.innerHTML = `<div><strong>${escapeHtml(m.sender.username)}</strong> <span class="muted">${new Date(m.sentAt).toLocaleString()}</span><p>${escapeHtml(m.messageContent)}</p></div>`;
-        list.appendChild(el);
-      });
+  document.getElementById('logoutBtn').addEventListener('click', e => {
+    e.preventDefault();
+    logout();
+  });
 
-      document.getElementById('sendMsg').onclick = async () => {
-        const text = document.getElementById('msgText').value.trim();
-        if (!text) return;
-        // Demo composer: call /api/messages but server requires senderId; this static UI uses demo session to fill it
-        await fetchJSON('/api/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ senderId: user.id, receiverId: msgs[0].senderId === user.id ? msgs[0].receiverId : msgs[0].senderId, messageContent: text, conversationId })
-        }).catch(()=>null);
-        document.getElementById('msgText').value = '';
-        openConversation(conversationId); // reload
-      };
-    } catch (err) {
-      document.getElementById('messagesList').innerHTML = '<div class="muted">Erro ao carregar mensagens.</div>';
-    }
+  const messagesKey = 'agri_messages_demo';
+  const conversationList = document.getElementById('conversationList');
+  const messageForm = document.getElementById('messageForm');
+
+  function renderConversations() {
+    const messages = getData(messagesKey);
+    const grouped = {};
+
+    messages.forEach(msg => {
+      const other = msg.senderId === user.email ? msg.receiverId : msg.senderId;
+      if (!grouped[other]) grouped[other] = [];
+      grouped[other].push(msg);
+    });
+
+    conversationList.innerHTML = '';
+    Object.entries(grouped).forEach(([partner, msgs]) => {
+      const last = msgs[msgs.length - 1];
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${partner}</strong> — Última: "${last.messageContent}" <button onclick="alert('Abrir conversa com ${partner}')">Abrir</button>`;
+      conversationList.appendChild(li);
+    });
   }
+
+  messageForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const fd = new FormData(messageForm);
+    const newMessage = {
+      id: Date.now().toString(),
+      senderId: user.email,
+      receiverId: fd.get('receiver'),
+      messageContent: fd.get('content'),
+      sentAt: new Date().toISOString()
+    };
+    addItem(messagesKey, newMessage);
+    messageForm.reset();
+    renderConversations();
+  });
+
+  renderConversations();
 </script>
 </body>
 </html>

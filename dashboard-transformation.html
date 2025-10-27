@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard — Armazenamento</title>
+  <title>Dashboard — Transformação</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -25,34 +25,32 @@
 </div>
 
 <div class="main">
-  <h1>Armazenamento</h1>
+  <h1>Transformação</h1>
   <p id="userInfo">Carregando sessão...</p>
 
   <div class="card">
-    <h2>Meus Armazéns</h2>
+    <h2>Meus Serviços de Transformação</h2>
     <table>
       <thead>
-        <tr><th>Nome</th><th>Tipo</th><th>Capacidade</th><th>Status</th><th>Ações</th></tr>
+        <tr><th>Serviço</th><th>Tipo</th><th>Local</th><th>Status</th><th>Ações</th></tr>
       </thead>
-      <tbody id="storageTableBody"></tbody>
+      <tbody id="transformationTableBody"></tbody>
     </table>
   </div>
 
   <div class="card">
-    <h2>Adicionar Novo Armazém</h2>
-    <form id="storageForm">
-      <label>Nome da Instalação: <input type="text" name="name" required /></label><br/>
-      <label>Tipo de Armazenamento: <input type="text" name="type" value="Frigorífico" required /></label><br/>
-      <label>Capacidade (toneladas): <input type="number" name="capacity" required /></label><br/>
+    <h2>Adicionar Novo Serviço</h2>
+    <form id="transformationForm">
+      <label>Nome do Serviço: <input type="text" name="name" required /></label><br/>
+      <label>Tipo de Serviço: <input type="text" name="type" value="Secagem" required /></label><br/>
+      <label>Localização: <input type="text" name="location" value="Luanda" required /></label><br/>
       <label>Status: 
         <select name="status">
           <option value="Disponível">Disponível</option>
-          <option value="Parcialmente Disponível">Parcialmente Disponível</option>
-          <option value="Cheio">Cheio</option>
           <option value="Indisponível">Indisponível</option>
         </select>
       </label><br/>
-      <button class="btn btn-primary" type="submit">Publicar Armazém</button>
+      <button class="btn btn-primary" type="submit">Publicar Serviço</button>
     </form>
   </div>
 </div>
@@ -74,43 +72,43 @@
     logout();
   });
 
-  const storageKey = 'agri_storage_demo';
-  const storageTableBody = document.getElementById('storageTableBody');
-  const storageForm = document.getElementById('storageForm');
+  const transformationKey = 'agri_transformation_demo';
+  const transformationTableBody = document.getElementById('transformationTableBody');
+  const transformationForm = document.getElementById('transformationForm');
 
-  function renderStorage() {
-    const listings = getData(storageKey);
-    storageTableBody.innerHTML = '';
-    listings.filter(s => s.ownerId === user.email).forEach(s => {
+  function renderTransformations() {
+    const services = getData(transformationKey);
+    transformationTableBody.innerHTML = '';
+    services.filter(s => s.ownerId === user.email).forEach(s => {
       const row = document.createElement('tr');
       row.innerHTML = `
         <td>${s.name}</td>
         <td>${s.type}</td>
-        <td>${s.capacity} t</td>
+        <td>${s.location}</td>
         <td>${s.status}</td>
         <td><button onclick="alert('Editar: ${s.id}')">Editar</button></td>
       `;
-      storageTableBody.appendChild(row);
+      transformationTableBody.appendChild(row);
     });
   }
 
-  storageForm.addEventListener('submit', e => {
+  transformationForm.addEventListener('submit', e => {
     e.preventDefault();
-    const fd = new FormData(storageForm);
-    const newStorage = {
+    const fd = new FormData(transformationForm);
+    const newService = {
       id: Date.now().toString(),
       ownerId: user.email,
       name: fd.get('name'),
       type: fd.get('type'),
-      capacity: parseFloat(fd.get('capacity')),
+      location: fd.get('location'),
       status: fd.get('status')
     };
-    addItem(storageKey, newStorage);
-    storageForm.reset();
-    renderStorage();
+    addItem(transformationKey, newService);
+    transformationForm.reset();
+    renderTransformations();
   });
 
-  renderStorage();
+  renderTransformations();
 </script>
 </body>
 </html>
