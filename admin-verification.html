@@ -5,9 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Admin — Verificações</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .loading { padding: 1rem; color: var(--muted); }
+    .muted { color: var(--muted); }
+    .card { border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+    .card-footer { margin-top: 0.5rem; }
+    .btn { padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; }
+    .btn-sm { font-size: 0.85rem; }
+    .btn-primary { background: var(--accent); color: #fff; border: none; }
+  </style>
 </head>
 <body>
-<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <span class="logo">A</span><span class="brand-name">AgriConnect</span>
+    </a>
+  </div>
+</header>
 
 <main class="container">
   <h1>Verificações de Documentos</h1>
@@ -15,24 +30,49 @@
   <div id="verifMsg" class="muted"></div>
 </main>
 
-<footer class="site-footer"><div class="container">© <span id="yearAV"></span> AgriConnect Angola</div></footer>
+<footer class="site-footer">
+  <div class="container">© <span id="yearAV"></span> AgriConnect Angola</div>
+</footer>
 
-<script src="app.js"></script>
 <script>
   document.getElementById('yearAV').innerText = new Date().getFullYear();
 
+  // --- small helpers ---
+  async function fetchJSON(url, opts={}) {
+    const res = await fetch(url, opts);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, s => (
+      { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[s]
+    ));
+  }
+
+  // --- load pending documents ---
   (async function loadVerifications(){
     const area = document.getElementById('verifList');
     area.innerHTML = '<div class="loading">Carregando...</div>';
     try {
-      // server endpoint: /api/admin/verification or /api/verification/documents
-      const data = await fetchJSON('/api/admin/verification?status=PENDING_REVIEW').catch(()=>fetchJSON('/api/verification/documents?status=PENDING_REVIEW'));
+      const data = await fetchJSON('/api/admin/verification?status=PENDING_REVIEW');
       const docs = Array.isArray(data) ? data : (data.documents || data);
       area.innerHTML = '';
-      if (!docs || docs.length===0) { document.getElementById('verifMsg').textContent='Nenhum documento pendente.'; return; }
+      if (!docs || docs.length===0) {
+        document.getElementById('verifMsg').textContent='Nenhum documento pendente.';
+        return;
+      }
       docs.forEach(d=>{
         const item = document.createElement('div'); item.className='card';
-        item.innerHTML = `<div><h3 class="card-title">${escapeHtml(d.docType || d.type || 'Documento')}</h3><p class="card-desc">Usuário: ${escapeHtml(d.user?.fullName || d.user?.username || d.userId || '')}</p><p><a href="${escapeHtml(d.fileUrl || '#')}" target="_blank">Ver arquivo</a></p></div><div class="card-footer"><div><button class="btn btn-sm btn-primary" data-id="${escapeHtml(d.id)}" data-action="approve">Aprovar</button><button class="btn btn-sm" data-id="${escapeHtml(d.id)}" data-action="reject">Rejeitar</button></div></div>`;
+        item.innerHTML = `
+          <div>
+            <h3 class="card-title">${escapeHtml(d.docType || d.type || 'Documento')}</h3>
+            <p class="card-desc">Usuário: ${escapeHtml(d.user?.fullName || d.user?.username || d.userId || '')}</p>
+            <p><a href="${escapeHtml(d.fileUrl || '#')}" target="_blank">Ver arquivo</a></p>
+          </div>
+          <div class="card-footer">
+            <button class="btn btn-sm btn-primary" data-id="${escapeHtml(d.id)}" data-action="approve">Aprovar</button>
+            <button class="btn btn-sm" data-id="${escapeHtml(d.id)}" data-action="reject">Rejeitar</button>
+          </div>`;
         item.querySelectorAll('button').forEach(btn=>{
           btn.addEventListener('click', async () => {
             const id = btn.dataset.id; const action = btn.dataset.action;
@@ -49,10 +89,12 @@
         area.appendChild(item);
       });
     } catch (err) {
+      console.error(err);
       area.innerHTML = '<div class="muted">Erro ao carregar verificações</div>';
     }
   })();
 
+  // --- call PATCH route ---
   async function patchVerify(id, status, notes='') {
     try {
       const res = await fetch(`/api/admin/verification/${encodeURIComponent(id)}`, {

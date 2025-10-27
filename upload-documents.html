@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Enviar Documentos — AgriConnect</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .container { max-width: 600px; margin: 2rem auto; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    .btn { padding:0.5rem 1rem; border:none; border-radius:4px; cursor:pointer; }
+    .btn-primary { background: var(--accent); color:#fff; }
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html">
+      <span class="logo">A</span><span class="brand-name">AgriConnect</span>
+    </a>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Enviar Documento para Verificação</h1>
+  <div class="card">
+    <form id="uploadForm" enctype="multipart/form-data">
+      <label>Tipo de Documento:<br/>
+        <select name="docType" required>
+          <option value="ID_CARD">Bilhete de Identidade</option>
+          <option value="LICENSE">Licença</option>
+          <option value="OTHER">Outro</option>
+        </select>
+      </label><br/><br/>
+      <label>Arquivo:<br/>
+        <input type="file" name="file" required />
+      </label><br/><br/>
+      <button type="submit" class="btn btn-primary">Enviar</button>
+    </form>
+  </div>
+  <div id="uploadMsg" class="muted"></div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">© <span id="yearUD"></span> AgriConnect Angola</div>
+</footer>
+
+<script>
+  document.getElementById('yearUD').innerText = new Date().getFullYear();
+
+  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    const msg = document.getElementById('uploadMsg');
+    msg.textContent = 'Enviando...';
+
+    try {
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        throw new Error(err.error || 'Falha no upload');
+      }
+      const doc = await res.json();
+      msg.textContent = 'Documento enviado com sucesso! Status: ' + doc.status;
+      form.reset();
+    } catch (err) {
+      msg.textContent = 'Erro: ' + err.message;
+    }
+  });
+</script>
+</body>
+</html>
