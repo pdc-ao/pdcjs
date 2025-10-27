@@ -6,22 +6,47 @@
   <title>Detalhe da Transação</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    .detail-card { max-width: 700px; margin: 2rem auto; padding: 1rem; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+    .detail-card {
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #fff;
+    }
     .detail-card h2 { margin-top: 0; }
     .detail-row { margin-bottom: 0.5rem; }
     .label { font-weight: bold; display: inline-block; width: 150px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { padding: 0.5rem; border-bottom: 1px solid #ddd; }
   </style>
 </head>
 <body>
 <header class="site-header">
   <div class="container header-inner">
-    <a class="brand" href="dashboard-wallet.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a>
+    <a class="brand" href="dashboard-wallet.html">
+      <span class="logo">A</span><span class="brand-name">AgriConnect</span>
+    </a>
   </div>
 </header>
 
 <main class="container">
+  <!-- Transaction details -->
   <div class="detail-card" id="txnDetail">
     Carregando detalhes da transação...
+  </div>
+
+  <!-- Audit trail -->
+  <div class="detail-card">
+    <h3>Histórico de Ações</h3>
+    <table>
+      <thead>
+        <tr><th>Data</th><th>Ação</th><th>Ator</th><th>Notas</th></tr>
+      </thead>
+      <tbody id="eventLog">
+        <tr><td colspan="4">Carregando...</td></tr>
+      </tbody>
+    </table>
   </div>
 </main>
 
@@ -36,11 +61,12 @@
   const params = new URLSearchParams(location.search);
   const txnId = params.get('id');
 
+  // Load transaction details
   async function loadTransaction() {
     const container = document.getElementById('txnDetail');
     try {
       const res = await fetch(`/api/payments/transactions/${txnId}`);
-      if (!res.ok) throw new Error('Erro ao carregar');
+      if (!res.ok) throw new Error('Erro ao carregar detalhes');
       const t = await res.json();
       container.innerHTML = `
         <h2>Transação ${t.id}</h2>
@@ -57,7 +83,35 @@
     }
   }
 
+  // Load audit trail events
+  async function loadEvents() {
+    const tbody = document.getElementById('eventLog');
+    try {
+      const res = await fetch(`/api/payments/transactions/${txnId}/events`);
+      if (!res.ok) throw new Error('Erro ao carregar eventos');
+      const events = await res.json();
+      tbody.innerHTML = '';
+      if (events.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">Nenhum evento registrado.</td></tr>';
+        return;
+      }
+      events.forEach(ev => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${new Date(ev.timestamp).toLocaleString()}</td>
+          <td>${ev.action}</td>
+          <td>${ev.actor?.fullName || ev.actor?.username || ev.actorId}</td>
+          <td>${ev.notes || ''}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="4">Erro: ${err.message}</td></tr>`;
+    }
+  }
+
   loadTransaction();
+  loadEvents();
 </script>
 </body>
 </html>

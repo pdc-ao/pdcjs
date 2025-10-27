@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Produtos</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.5rem; border-bottom: 1px solid #ddd; }
+    .actions button { margin-right: 0.25rem; }
+    .modal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background: #fff; padding: 1rem; border-radius: 6px; width: 400px;
+    }
+  </style>
 </head>
 <body>
 <div class="sidebar">
@@ -41,6 +53,8 @@
     <h2>Adicionar Novo Produto</h2>
     <form id="productForm">
       <label>Título: <input type="text" name="title" required /></label><br/>
+      <label>Descrição: <input type="text" name="description" required /></label><br/>
+      <label>Categoria: <input type="text" name="category" required /></label><br/>
       <label>Preço por unidade: <input type="number" name="price" required /></label><br/>
       <label>Unidade: <input type="text" name="unit" value="kg" required /></label><br/>
       <label>Quantidade disponível: <input type="number" name="quantity" required /></label><br/>
@@ -49,62 +63,136 @@
   </div>
 </div>
 
+<!-- Edit Modal -->
+<div id="editModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>Editar Produto</h3>
+    <form id="editForm">
+      <input type="hidden" name="id" />
+      <label>Título: <input type="text" name="title" required /></label><br/>
+      <label>Preço por unidade: <input type="number" name="price" required /></label><br/>
+      <label>Unidade: <input type="text" name="unit" required /></label><br/>
+      <label>Quantidade disponível: <input type="number" name="quantity" required /></label><br/>
+      <label>Status: 
+        <select name="status">
+          <option value="Active">Ativo</option>
+          <option value="Inactive">Inativo</option>
+        </select>
+      </label><br/>
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <button type="button" id="closeModal">Cancelar</button>
+    </form>
+  </div>
+</div>
+
 <script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    setData,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
   renderUserInfo('#userInfo');
+  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
 
-  document.getElementById('logoutBtn').addEventListener('click', e => {
-    e.preventDefault();
-    logout();
-  });
-
-  const productsKey = 'agri_products_demo';
   const productTableBody = document.getElementById('productTableBody');
   const productForm = document.getElementById('productForm');
+  const editModal = document.getElementById('editModal');
+  const editForm = document.getElementById('editForm');
+  const closeModalBtn = document.getElementById('closeModal');
 
-  function renderProducts() {
-    const products = getData(productsKey);
-    productTableBody.innerHTML = '';
-    products.filter(p => p.producerId === user.email).forEach(p => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${p.title}</td>
-        <td>${p.price}/${p.unit}</td>
-        <td>${p.quantity}</td>
-        <td>${p.status}</td>
-        <td><button onclick="alert('Editar produto: ${p.id}')">Editar</button></td>
-      `;
-      productTableBody.appendChild(row);
-    });
+  async function loadProducts() {
+    productTableBody.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
+    try {
+      const res = await fetch('/api/products');
+      if (!res.ok) throw new Error('Erro ao carregar produtos');
+      const data = await res.json();
+      const products = data.products.filter(p => p.producerId === user.id);
+      productTableBody.innerHTML = '';
+      if (products.length === 0) {
+        productTableBody.innerHTML = '<tr><td colspan="5">Nenhum produto listado.</td></tr>';
+        return;
+      }
+      products.forEach(p => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${p.title}</td>
+          <td>${p.pricePerUnit}/${p.unitOfMeasure}</td>
+          <td>${p.quantityAvailable}</td>
+          <td>${p.status}</td>
+          <td class="actions"><button class="btn btn-sm">Editar</button></td>
+        `;
+        row.querySelector('button').onclick = () => openEditModal(p);
+        productTableBody.appendChild(row);
+      });
+    } catch (err) {
+      productTableBody.innerHTML = `<tr><td colspan="5">Erro: ${err.message}</td></tr>`;
+    }
   }
 
-  productForm.addEventListener('submit', e => {
+  productForm.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(productForm);
-    const newProduct = {
-      id: Date.now().toString(),
-      producerId: user.email,
-      title: fd.get('title'),
-      price: parseFloat(fd.get('price')),
-      unit: fd.get('unit'),
-      quantity: parseFloat(fd.get('quantity')),
-      status: 'Ativo'
-    };
-    addItem(productsKey, newProduct);
-    productForm.reset();
-    renderProducts();
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: fd.get('title'),
+          description: fd.get('description'),
+          category: fd.get('category'),
+          quantityAvailable: fd.get('quantity'),
+          unitOfMeasure: fd.get('unit'),
+          pricePerUnit: fd.get('price')
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        throw new Error(err.error || 'Falha ao criar produto');
+      }
+      productForm.reset();
+      await loadProducts();
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    }
   });
 
-  renderProducts();
+  function openEditModal(product) {
+    editForm.id.value = product.id;
+    editForm.title.value = product.title;
+    editForm.price.value = product.pricePerUnit;
+    editForm.unit.value = product.unitOfMeasure;
+    editForm.quantity.value = product.quantityAvailable;
+    editForm.status.value = product.status;
+    editModal.style.display = 'flex';
+  }
+
+  closeModalBtn.onclick = () => { editModal.style.display = 'none'; };
+
+  editForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(editForm);
+    try {
+      const res = await fetch(`/api/products/${fd.get('id')}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: fd.get('title'),
+          pricePerUnit: fd.get('price'),
+          unitOfMeasure: fd.get('unit'),
+          quantityAvailable: fd.get('quantity'),
+          status: fd.get('status')
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        throw new Error(err.error || 'Falha ao atualizar');
+      }
+      editModal.style.display = 'none';
+      await loadProducts();
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    }
+  });
+
+  loadProducts();
 </script>
 </body>
 </html>
