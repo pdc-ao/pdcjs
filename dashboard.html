@@ -27,6 +27,13 @@
   <a href="dashboard-wallet.html">💳 Pagamentos</a>
   <a href="dashboard-notifications.html">🔔 Notificações</a>
   <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
   <a href="auth.html" id="logoutBtn">🚪 Sair</a>
 </div>
 
@@ -40,14 +47,17 @@
       <li><a href="products.html">Explorar Produtos</a></li>
       <li><a href="dashboard-transport.html">Serviços de Transporte</a></li>
       <li><a href="dashboard-storage.html">Instalações de Armazenamento</a></li>
+      <li><a href="facilities-list.html">Ver Todas as Instalações</a></li>
     </ul>
   </div>
 
   <div class="card">
     <h2>Ações</h2>
     <ul>
-      <li><a href="dashboard-storage-new.html">Criar Novo Armazém</a></li>
       <li><a href="dashboard-products.html">Criar / Gerir Produtos</a></li>
+      <li><a href="dashboard-storage-new.html">Criar Novo Armazém</a></li>
+      <li><a href="facilities-new.html">Adicionar Instalação</a></li>
+      <li><a href="product-new.html">Publicar Produto</a></li>
     </ul>
   </div>
 
@@ -55,7 +65,6 @@
 </div>
 
 <script>
-  // Load user session
   const user = JSON.parse(localStorage.getItem('agri_user'));
   const userInfo = document.getElementById('userInfo');
   const roleSpecific = document.getElementById('roleSpecific');
@@ -65,39 +74,68 @@
   } else {
     userInfo.textContent = `${user.name || user.email} — ${user.role}`;
 
-    // Role-specific cards
     if (user.role === 'PRODUCER') {
       roleSpecific.innerHTML = `
         <div class="card">
           <h2>Ferramentas do Produtor</h2>
           <ul>
+            <li><a href="dashboard-producer.html">Painel do Produtor</a></li>
             <li><a href="dashboard-products.html">Meus Produtos</a></li>
             <li><a href="dashboard-storage-new.html">Adicionar Armazém</a></li>
+            <li><a href="dashboard-production.html">Serviços de Produção</a></li>
           </ul>
         </div>`;
     }
+
     if (user.role === 'TRANSPORTER') {
       roleSpecific.innerHTML = `
         <div class="card">
           <h2>Ferramentas do Transportador</h2>
           <ul>
+            <li><a href="dashboard-transporter.html">Painel do Transportador</a></li>
             <li><a href="dashboard-transport.html">Meus Transportes</a></li>
           </ul>
         </div>`;
     }
+
+    if (user.role === 'STORAGE_OWNER') {
+      roleSpecific.innerHTML = `
+        <div class="card">
+          <h2>Gestão de Armazéns</h2>
+          <ul>
+            <li><a href="dashboard-storage-owner.html">Painel do Proprietário</a></li>
+            <li><a href="dashboard-storage.html">Listagens de Armazéns</a></li>
+          </ul>
+        </div>`;
+    }
+
+    if (user.role === 'CONSUMER') {
+      roleSpecific.innerHTML = `
+        <div class="card">
+          <h2>Área do Consumidor</h2>
+          <ul>
+            <li><a href="dashboard-consumer.html">Painel do Consumidor</a></li>
+            <li><a href="dashboard-orders.html">Meus Pedidos</a></li>
+            <li><a href="dashboard-reviews.html">Minhas Avaliações</a></li>
+          </ul>
+        </div>`;
+    }
+
     if (user.role === 'ADMIN') {
       roleSpecific.innerHTML = `
         <div class="card">
           <h2>Administração</h2>
           <ul>
-            <li><a href="dashboard-users.html">Gerir Utilizadores</a></li>
+            <li><a href="dashboard-admin.html">Painel Administrativo</a></li>
+            <li><a href="admin-users.html">Gerir Utilizadores</a></li>
+            <li><a href="admin-verification.html">Verificar Documentos</a></li>
             <li><a href="dashboard-orders.html">Gerir Pedidos</a></li>
+            <li><a href="dashboard-wallet.html">Pagamentos e Transações</a></li>
           </ul>
         </div>`;
     }
   }
 
-  // Logout
   document.getElementById('logoutBtn').addEventListener('click', (e) => {
     e.preventDefault();
     localStorage.removeItem('agri_user');
