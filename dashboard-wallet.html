@@ -41,6 +41,17 @@
       <tbody id="transactionTableBody"></tbody>
     </table>
   </div>
+
+  <div class="card">
+    <h2>Iniciar Nova Transação</h2>
+    <form id="paymentForm">
+      <label>Vendedor (ID): <input type="text" name="sellerId" required /></label><br/>
+      <label>Valor (AOA): <input type="number" name="amount" required /></label><br/>
+      <label>Descrição: <input type="text" name="description" /></label><br/>
+      <button class="btn btn-primary" type="submit">Criar</button>
+    </form>
+    <div id="paymentMsg" class="muted"></div>
+  </div>
 </div>
 
 <script type="module">
@@ -51,24 +62,25 @@
   document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
 
   const tbody = document.getElementById('transactionTableBody');
+  const paymentForm = document.getElementById('paymentForm');
+  const paymentMsg = document.getElementById('paymentMsg');
 
   async function loadTransactions() {
     tbody.innerHTML = '<tr><td colspan="4">Carregando...</td></tr>';
     try {
-      const res = await fetch('/api/payments/transactions'); // you may need to implement this list endpoint
+      const res = await fetch('/api/payments/transactions');
       if (!res.ok) throw new Error('Erro ao carregar');
       const txns = await res.json();
       tbody.innerHTML = '';
       txns.forEach(t => {
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${t.id}</td>
+          <td><a href="transaction-detail.html?id=${t.id}">${t.id}</a></td>          
           <td>AOA ${Number(t.amount).toFixed(2)}</td>
           <td>${t.status}</td>
           <td class="actions"></td>
         `;
         const actionsCell = row.querySelector('.actions');
-        // Render action buttons depending on status and role
         if (t.status === 'PENDING' && t.buyerId === user.id) {
           actionsCell.appendChild(makeBtn('Fund', () => act(t.id, 'FUND')));
           actionsCell.appendChild(makeBtn('Cancelar', () => act(t.id, 'CANCEL')));
@@ -122,6 +134,32 @@
       alert('Erro: ' + err.message);
     }
   }
+
+  paymentForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    paymentMsg.textContent = 'Criando...';
+    const fd = new FormData(paymentForm);
+    try {
+      const res = await fetch('/api/payments/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sellerId: fd.get('sellerId'),
+          amount: fd.get('amount'),
+          description: fd.get('description')
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        throw new Error(err.error || 'Falha');
+      }
+      paymentForm.reset();
+      paymentMsg.textContent = 'Transação criada com sucesso!';
+      await loadTransactions();
+    } catch (err) {
+      paymentMsg.textContent = 'Erro: ' + err.message;
+    }
+  });
 
   loadTransactions();
 </script>

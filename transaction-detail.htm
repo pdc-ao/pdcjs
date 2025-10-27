@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Detalhe da Transação</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .detail-card { max-width: 700px; margin: 2rem auto; padding: 1rem; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+    .detail-card h2 { margin-top: 0; }
+    .detail-row { margin-bottom: 0.5rem; }
+    .label { font-weight: bold; display: inline-block; width: 150px; }
+  </style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="dashboard-wallet.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a>
+  </div>
+</header>
+
+<main class="container">
+  <div class="detail-card" id="txnDetail">
+    Carregando detalhes da transação...
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">© <span id="yearTD"></span> AgriConnect Angola</div>
+</footer>
+
+<script src="js/app.js"></script>
+<script>
+  document.getElementById('yearTD').innerText = new Date().getFullYear();
+
+  const params = new URLSearchParams(location.search);
+  const txnId = params.get('id');
+
+  async function loadTransaction() {
+    const container = document.getElementById('txnDetail');
+    try {
+      const res = await fetch(`/api/payments/transactions/${txnId}`);
+      if (!res.ok) throw new Error('Erro ao carregar');
+      const t = await res.json();
+      container.innerHTML = `
+        <h2>Transação ${t.id}</h2>
+        <div class="detail-row"><span class="label">Valor:</span> AOA ${Number(t.amount).toFixed(2)}</div>
+        <div class="detail-row"><span class="label">Status:</span> ${t.status}</div>
+        <div class="detail-row"><span class="label">Comprador:</span> ${t.buyer?.fullName || t.buyer?.username || t.buyerId}</div>
+        <div class="detail-row"><span class="label">Vendedor:</span> ${t.seller?.fullName || t.seller?.username || t.sellerId}</div>
+        <div class="detail-row"><span class="label">Descrição:</span> ${t.description || '-'}</div>
+        <div class="detail-row"><span class="label">Criado em:</span> ${new Date(t.createdAt).toLocaleString()}</div>
+        ${t.releasedAt ? `<div class="detail-row"><span class="label">Finalizado em:</span> ${new Date(t.releasedAt).toLocaleString()}</div>` : ''}
+      `;
+    } catch (err) {
+      container.textContent = 'Erro: ' + err.message;
+    }
+  }
+
+  loadTransaction();
+</script>
+</body>
+</html>
