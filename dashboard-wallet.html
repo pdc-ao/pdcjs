@@ -5,19 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Pagamentos</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.5rem; border-bottom: 1px solid #ddd; }
+    .actions button { margin-right: 0.25rem; }
+  </style>
 </head>
 <body>
 <div class="sidebar">
   <h2>AgriConnect</h2>
   <a href="dashboard.html">📊 Dashboard</a>
-  <a href="dashboard-products.html" class="active">📦 Produtos</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
   <a href="dashboard-orders.html">🛒 Pedidos</a>
   <a href="dashboard-storage.html">🏭 Armazenamento</a>
   <a href="dashboard-transport.html">🚚 Transporte</a>
   <a href="dashboard-transformation.html">⚙️ Transformação</a>
   <a href="dashboard-messages.html">💬 Mensagens</a>
   <a href="dashboard-reviews.html">⭐ Avaliações</a>
-  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-wallet.html" class="active">💳 Pagamentos</a>
   <a href="dashboard-notifications.html">🔔 Notificações</a>
   <a href="dashboard-admin.html">🛠️ Admin</a>
   <a href="auth.html" id="logoutBtn">🚪 Sair</a>
@@ -28,81 +33,97 @@
   <p id="userInfo">Carregando sessão...</p>
 
   <div class="card">
-    <h2>Transações Recentes</h2>
+    <h2>Transações</h2>
     <table>
       <thead>
-        <tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Status</th></tr>
+        <tr><th>ID</th><th>Valor</th><th>Status</th><th>Ações</th></tr>
       </thead>
       <tbody id="transactionTableBody"></tbody>
     </table>
   </div>
-
-  <div class="card">
-    <h2>Enviar Pagamento</h2>
-    <form id="paymentForm">
-      <label>Para (email ou ID): <input type="text" name="receiver" required /></label><br/>
-      <label>Valor (AOA): <input type="number" name="amount" required /></label><br/>
-      <label>Descrição: <input type="text" name="description" /></label><br/>
-      <button class="btn btn-primary" type="submit">Enviar</button>
-    </form>
-  </div>
 </div>
 
 <script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
   renderUserInfo('#userInfo');
+  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
 
-  document.getElementById('logoutBtn').addEventListener('click', e => {
-    e.preventDefault();
-    logout();
-  });
+  const tbody = document.getElementById('transactionTableBody');
 
-  const paymentsKey = 'agri_payments_demo';
-  const transactionTableBody = document.getElementById('transactionTableBody');
-  const paymentForm = document.getElementById('paymentForm');
-
-  function renderTransactions() {
-    const txns = getData(paymentsKey);
-    transactionTableBody.innerHTML = '';
-    txns.filter(t => t.sender === user.email || t.receiver === user.email).forEach(t => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${new Date(t.date).toLocaleDateString()}</td>
-        <td>${t.description}</td>
-        <td>${t.sender === user.email ? 'Saída' : 'Entrada'}</td>
-        <td>AOA ${t.amount.toFixed(2)}</td>
-        <td>${t.status}</td>
-      `;
-      transactionTableBody.appendChild(row);
-    });
+  async function loadTransactions() {
+    tbody.innerHTML = '<tr><td colspan="4">Carregando...</td></tr>';
+    try {
+      const res = await fetch('/api/payments/transactions'); // you may need to implement this list endpoint
+      if (!res.ok) throw new Error('Erro ao carregar');
+      const txns = await res.json();
+      tbody.innerHTML = '';
+      txns.forEach(t => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${t.id}</td>
+          <td>AOA ${Number(t.amount).toFixed(2)}</td>
+          <td>${t.status}</td>
+          <td class="actions"></td>
+        `;
+        const actionsCell = row.querySelector('.actions');
+        // Render action buttons depending on status and role
+        if (t.status === 'PENDING' && t.buyerId === user.id) {
+          actionsCell.appendChild(makeBtn('Fund', () => act(t.id, 'FUND')));
+          actionsCell.appendChild(makeBtn('Cancelar', () => act(t.id, 'CANCEL')));
+        }
+        if (t.status === 'FUNDED' && t.sellerId === user.id) {
+          actionsCell.appendChild(makeBtn('Confirmar Venda', () => act(t.id, 'SELLER_CONFIRM')));
+        }
+        if (['FUNDED','SELLER_CONFIRMED'].includes(t.status) && t.buyerId === user.id) {
+          actionsCell.appendChild(makeBtn('Confirmar Compra', () => act(t.id, 'BUYER_CONFIRM')));
+        }
+        if (['FUNDED','SELLER_CONFIRMED','BUYER_CONFIRMED'].includes(t.status) && (t.buyerId === user.id || t.sellerId === user.id)) {
+          actionsCell.appendChild(makeBtn('Disputar', () => act(t.id, 'DISPUTE')));
+        }
+        if (user.role === 'ADMIN') {
+          if (['BUYER_CONFIRMED','SELLER_CONFIRMED'].includes(t.status)) {
+            actionsCell.appendChild(makeBtn('Liberar', () => act(t.id, 'RELEASE')));
+          }
+          if (t.status === 'DISPUTED') {
+            actionsCell.appendChild(makeBtn('Reembolsar', () => act(t.id, 'REFUND')));
+          }
+        }
+        tbody.appendChild(row);
+      });
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="4">Erro: ${err.message}</td></tr>`;
+    }
   }
 
-  paymentForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const fd = new FormData(paymentForm);
-    const newTxn = {
-      id: Date.now().toString(),
-      sender: user.email,
-      receiver: fd.get('receiver'),
-      amount: parseFloat(fd.get('amount')),
-      description: fd.get('description') || 'Pagamento manual',
-      status: 'Confirmado',
-      date: new Date().toISOString()
-    };
-    addItem(paymentsKey, newTxn);
-    paymentForm.reset();
-    renderTransactions();
-  });
+  function makeBtn(label, handler) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.className = 'btn btn-sm btn-primary';
+    btn.onclick = handler;
+    return btn;
+  }
 
-  renderTransactions();
+  async function act(id, action) {
+    if (!confirm(`Executar ação ${action} na transação ${id}?`)) return;
+    try {
+      const res = await fetch(`/api/payments/transactions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        throw new Error(err.error || 'Falha');
+      }
+      await loadTransactions();
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    }
+  }
+
+  loadTransactions();
 </script>
 </body>
 </html>
