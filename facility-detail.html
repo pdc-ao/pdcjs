@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Detalhe da Instalação</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Detalhes da Instalação</h1>
+  <div id="facilityDetail" class="card">Carregando...</div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">© <span id="yearFD"></span> AgriConnect Angola</div>
+</footer>
+
+<script>
+  document.getElementById('yearFD').innerText = new Date().getFullYear();
+  const id = new URLSearchParams(location.search).get('id');
+
+  async function loadFacility() {
+    try {
+      const res = await fetch(`/api/facilities/${id}`);
+      if (!res.ok) throw new Error('Erro ao carregar');
+      const f = await res.json();
+      document.getElementById('facilityDetail').innerHTML = `
+        <h2>${f.facilityName}</h2>
+        <p>${f.description || ''}</p>
+        <p><strong>Cidade:</strong> ${f.city || ''}</p>
+        <p><strong>Capacidade:</strong> ${f.capacity || ''}</p>
+      `;
+    } catch (err) {
+      document.getElementById('facilityDetail').textContent = 'Erro ao carregar instalação.';
+    }
+  }
+  loadFacility();
+</script>
+</body>
+</html>
