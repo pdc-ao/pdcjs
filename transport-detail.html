@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Detalhe do Transporte — AgriConnect</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="dashboard-transport.html"><span class="logo">A</span> AgriConnect</a>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Detalhe do Transporte</h1>
+  <div id="transportDetail" class="card">Carregando...</div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">© <span id="year"></span> AgriConnect Angola</div>
+</footer>
+
+<script src="js/api-bridge.js"></script>
+<script src="js/app.js"></script>
+<script>
+  document.getElementById('year').innerText = new Date().getFullYear();
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+
+  (async function() {
+    try {
+      const transport = await fetchJSON('/api/transport/' + id);
+      document.getElementById('transportDetail').innerHTML = `
+        <h2>${escapeHtml(transport.companyName || 'Transporte')}</h2>
+        <p><strong>Motorista:</strong> ${escapeHtml(transport.driverName || '')}</p>
+        <p><strong>Veículo:</strong> ${escapeHtml(transport.vehicleRegistrationDetails || '')}</p>
+        <p><strong>Descrição:</strong> ${escapeHtml(transport.description || '')}</p>
+      `;
+    } catch (err) {
+      document.getElementById('transportDetail').textContent = 'Erro: ' + err.message;
+    }
+  })();
+</script>
+</body>
+</html>

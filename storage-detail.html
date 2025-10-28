@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Detalhe do Armazém — AgriConnect</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="dashboard-storage.html"><span class="logo">A</span> AgriConnect</a>
+  </div>
+</header>
+
+<main class="container">
+  <h1>Detalhe do Armazém</h1>
+  <div id="storageDetail" class="card">Carregando...</div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">© <span id="year"></span> AgriConnect Angola</div>
+</footer>
+
+<script src="js/api-bridge.js"></script>
+<script src="js/app.js"></script>
+<script>
+  document.getElementById('year').innerText = new Date().getFullYear();
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+
+  (async function() {
+    try {
+      const storage = await fetchJSON('/api/storage/' + id);
+      document.getElementById('storageDetail').innerHTML = `
+        <h2>${escapeHtml(storage.facilityName)}</h2>
+        <p><strong>Localização:</strong> ${escapeHtml(storage.location)}</p>
+        <p><strong>Capacidade:</strong> ${storage.capacity} toneladas</p>
+        <p><strong>Descrição:</strong> ${escapeHtml(storage.description || '')}</p>
+      `;
+    } catch (err) {
+      document.getElementById('storageDetail').textContent = 'Erro: ' + err.message;
+    }
+  })();
+</script>
+</body>
+</html>
