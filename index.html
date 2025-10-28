@@ -88,13 +88,135 @@
 
 <!-- ✅ CONTACTOS -->
 <section class="contact container">
-  <h2>Contactos</h2>
-  <p>Tem dúvidas ou sugestões? Fale conosco:</p>
-  <ul>
-    <li>Email: <a href="mailto:suporte@agriconnect.ao">suporte@agriconnect.ao</a></li>
-    <li>Telefone: +244 923 000 000</li>
-    <li>Endereço: Rua das Acácias, Luanda, Angola</li>
-  </ul>
+  <main class="container">
+  <div class="page-header">
+    <h1>Entre em Contacto</h1>
+    <p class="lead">Estamos aqui para ajudar. Fale conosco!</p>
+  </div>
+
+  <div class="contact-grid">
+    <div class="contact-card">
+      <div class="contact-icon">📧</div>
+      <h3>Email</h3>
+      <p><a href="mailto:suporte@agriconnect.ao">suporte@agriconnect.ao</a></p>
+      <p><a href="mailto:comercial@agriconnect.ao">comercial@agriconnect.ao</a></p>
+      <p class="muted">Respondemos em até 24 horas</p>
+    </div>
+
+    <div class="contact-card">
+      <div class="contact-icon">📞</div>
+      <h3>Telefone</h3>
+      <p><strong>Suporte:</strong> +244 923 000 000</p>
+      <p><strong>Comercial:</strong> +244 923 000 001</p>
+      <p class="muted">Segunda a Sexta: 8h - 18h</p>
+    </div>
+
+    <div class="contact-card">
+      <div class="contact-icon">📍</div>
+      <h3>Escritório</h3>
+      <p>Rua das Acácias, Nº 123</p>
+      <p>Talatona, Luanda</p>
+      <p>Angola</p>
+      <p class="muted">Visitas com agendamento prévio</p>
+    </div>
+  </div>
+
+  <section class="content-section">
+    <h2>Envie-nos uma Mensagem</h2>
+    
+    <form id="contactForm" class="contact-form">
+      <label>
+        Nome Completo *
+        <input type="text" name="name" required />
+      </label>
+
+      <label>
+        Email *
+        <input type="email" name="email" required />
+      </label>
+
+      <label>
+        Telefone
+        <input type="tel" name="phone" placeholder="+244 9XX XXX XXX" />
+      </label>
+
+      <label>
+        Assunto *
+        <select name="subject" required>
+          <option value="">Selecione um assunto</option>
+          <option value="Suporte Técnico">Suporte Técnico</option>
+          <option value="Informações Comerciais">Informações Comerciais</option>
+          <option value="Parcerias">Parcerias</option>
+          <option value="Reclamações">Reclamações</option>
+          <option value="Sugestões">Sugestões</option>
+          <option value="Outro">Outro</option>
+        </select>
+      </label>
+
+      <label>
+        Mensagem *
+        <textarea name="message" required placeholder="Descreva sua questão ou comentário..."></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Enviar Mensagem</button>
+      </div>
+
+      <div id="contactMsg" class="muted" style="margin-top: 1rem;"></div>
+    </form>
+  </section>
+
+  <section class="content-section">
+    <h2>Encontre-nos</h2>
+    <div class="map-container">
+      <p>📍 Mapa: Rua das Acácias, Talatona, Luanda, Angola</p>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2>Perguntas Frequentes</h2>
+    
+    <div class="faq-item" style="margin-bottom: 1.5rem;">
+      <h3>Como posso registar-me na plataforma?</h3>
+      <p>Clique em "Entrar / Registrar" no menu superior e siga as instruções. O registo é gratuito!</p>
+    </div>
+
+    <div class="faq-item" style="margin-bottom: 1.5rem;">
+      <h3>Quais são as taxas da plataforma?</h3>
+      <p>Cobramos uma pequena comissão sobre cada transação concluída. Contacte-nos para mais detalhes sobre os nossos planos.</p>
+    </div>
+
+    <div class="faq-item" style="margin-bottom: 1.5rem;">
+      <h3>Como funciona o sistema de pagamentos?</h3>
+      <p>Utilizamos um sistema de escrow (custódia) que garante a segurança de comprador e vendedor. O pagamento só é liberado após confirmação da entrega.</p>
+    </div>
+
+    <div class="faq-item" style="margin-bottom: 1.5rem;">
+      <h3>Posso vender produtos em todo o país?</h3>
+      <p>Sim! A AgriConnect conecta produtores e consumidores em todas as 18 províncias de Angola.</p>
+    </div>
+
+    <div class="faq-item" style="margin-bottom: 1.5rem;">
+      <h3>Como posso verificar minha conta?</h3>
+      <p>Após o registo, aceda à área de envio de documentos e submeta os documentos necessários. Nossa equipe verificará em até 48 horas.</p>
+    </div>
+  </section>
+
+  <section class="content-section">
+    <h2>Siga-nos nas Redes Sociais</h2>
+    <div style="text-align: center; font-size: 2rem; margin: 2rem 0;">
+      <a href="#" style="margin: 0 1rem; text-decoration: none;">📘 Facebook</a>
+      <a href="#" style="margin: 0 1rem; text-decoration: none;">📷 Instagram</a>
+      <a href="#" style="margin: 0 1rem; text-decoration: none;">🐦 Twitter</a>
+      <a href="#" style="margin: 0 1rem; text-decoration: none;">💼 LinkedIn</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>© <span id="yearContact"></span> AgriConnect Angola — Todos os direitos reservados.</p>
+  </div>
 </section>
 
 <footer class="site-footer">
