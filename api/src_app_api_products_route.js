@@ -1,8 +1,8 @@
-// GET / POST /api/products (basic list + create)
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/auth';
 
+// GET /api/products
 export async function GET(request) {
   try {
     const url = new URL(request.url);
@@ -14,39 +14,71 @@ export async function GET(request) {
 
     const where = { status: 'Active', quantityAvailable: { gt: 0 } };
     if (category) where.category = category;
-    if (search) where.OR = [{ title: { contains: search, mode: 'insensitive' } }, { description: { contains: search, mode: 'insensitive' } }];
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
 
     const [products, total] = await Promise.all([
       db.productListing.findMany({
         where,
-        include: { producer: { select: { id: true, username: true, fullName: true, averageRating: true } }, reviews: { where: { isApprovedByAdmin: true }, take: 5 } },
+        include: {
+          producer: {
+            select: { id: true, username: true, fullName: true, averageRating: true }
+          },
+          reviews: {
+            where: { isApprovedByAdmin: true },
+            take: 5
+          }
+        },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: limit,
+        take: limit
       }),
-      db.productListing.count({ where }),
+      db.productListing.count({ where })
     ]);
 
     const productsWithRatings = products.map(p => {
-      const avg = p.reviews && p.reviews.length ? p.reviews.reduce((s, r) => s + r.rating, 0) / p.reviews.length : null;
-      return { ...p, averageRating: avg, totalReviews: p.reviews?.length || 0 };
+      const avg = p.reviews?.length
+        ? p.reviews.reduce((s, r) => s + r.rating, 0) / p.reviews.length
+        : null;
+      return {
+        ...p,
+        averageRating: avg,
+        totalReviews: p.reviews?.length || 0
+      };
     });
 
-    return NextResponse.json({ products: productsWithRatings, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
+    return NextResponse.json({
+      products: productsWithRatings,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     console.error('[PRODUCTS GET]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
+// POST /api/products
 export async function POST(request) {
   try {
     const session = await getAuthSession();
-    if (!session?.user?.id) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
 
     const body = await request.json();
     const user = await db.user.findUnique({ where: { id: session.user.id } });
-    if (!user || user.role !== 'PRODUCER') return NextResponse.json({ error: 'Only producers can create products' }, { status: 403 });
+    if (!user || user.role !== 'PRODUCER') {
+      return NextResponse.json({ error: 'Only producers can create products' }, { status: 403 });
+    }
 
     if (!body.title || !body.description || !body.category || !body.quantityAvailable || !body.unitOfMeasure || !body.pricePerUnit) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
@@ -71,14 +103,56 @@ export async function POST(request) {
         locationLongitude: body.locationLongitude ? parseFloat(body.locationLongitude) : null,
         qualityCertifications: body.qualityCertifications || null,
         imagesUrls: images,
-        status: body.status || 'Active',
+        status: body.status || 'Active'
       },
-      include: { producer: { select: { id: true, username: true, fullName: true } } },
+      include: {
+        producer: {
+          select: { id: true, username: true, fullName: true }
+        }
+      }
     });
 
     return NextResponse.json(product, { status: 201 });
   } catch (err) {
     console.error('[PRODUCTS POST]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+// PATCH /api/products/:id
+export async function PATCH(request, { params }) {
+  try {
+    const session = await getAuthSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const product = await db.productListing.findUnique({ where: { id: params.id } });
+    if (!product) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    if (product.producerId !== session.user.id && session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+
+    const updated = await db.productListing.update({
+      where: { id: params.id },
+      data: {
+        title: body.title ?? product.title,
+        description: body.description ?? product.description,
+        category: body.category ?? product.category,
+        quantityAvailable: body.quantityAvailable ? parseFloat(body.quantityAvailable) : product.quantityAvailable,
+        unitOfMeasure: body.unitOfMeasure ?? product.unitOfMeasure,
+        pricePerUnit: body.pricePerUnit ? parseFloat(body.pricePerUnit) : product.pricePerUnit,
+        status: body.status ?? product.status
+      }
+    });
+
+    return NextResponse.json(updated);
+  } catch (err) {
+    console.error('[PRODUCT PATCH]', err);
+    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }
 }
