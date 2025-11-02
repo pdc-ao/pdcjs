@@ -5,10 +5,41 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Administração</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+    th { background: #f9fafb; font-weight: 600; }
+    .btn-sm { font-size: 14px; padding: 4px 8px; margin-right: 4px; }
+  </style>
 </head>
 <body>
 <div class="sidebar">
-  <!-- same sidebar links -->
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html" class="active">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
 <div class="main">
@@ -63,9 +94,9 @@
     logout();
   });
 
-  const usersKey = 'agri_users_demo';
-  const documentsKey = 'agri_documents_demo';
-  const paymentsKey = 'agri_payments_demo';
+  const usersKey = 'pdc_users_demo';
+  const documentsKey = 'pdc_documents_demo';
+  const paymentsKey = 'pdc_payments_demo';
 
   const userTableBody = document.getElementById('userTableBody');
   const documentTableBody = document.getElementById('documentTableBody');
@@ -81,23 +112,23 @@
         <td>${u.role}</td>
         <td>${u.verificationStatus}</td>
         <td>
-          <button onclick="verifyUser('${u.email}')">Aprovar</button>
-          <button onclick="rejectUser('${u.email}')">Rejeitar</button>
+          <button class="btn btn-primary btn-sm" onclick="verifyUser('${u.email}')">Aprovar</button>
+          <button class="btn btn-outline btn-sm" onclick="rejectUser('${u.email}')">Rejeitar</button>
         </td>
       `;
       userTableBody.appendChild(row);
     });
   }
 
-  function verifyUser(email) {
+  window.verifyUser = function(email) {
     updateItem(usersKey, email, { verificationStatus: 'Verificado' });
     renderUsers();
-  }
+  };
 
-  function rejectUser(email) {
+  window.rejectUser = function(email) {
     updateItem(usersKey, email, { verificationStatus: 'Rejeitado' });
     renderUsers();
-  }
+  };
 
   function renderDocuments() {
     const docs = getData(documentsKey);
@@ -109,23 +140,23 @@
         <td>${d.type}</td>
         <td>${d.status}</td>
         <td>
-          <button onclick="approveDoc('${d.id}')">Aprovar</button>
-          <button onclick="rejectDoc('${d.id}')">Rejeitar</button>
+          <button class="btn btn-primary btn-sm" onclick="approveDoc('${d.id}')">Aprovar</button>
+          <button class="btn btn-outline btn-sm" onclick="rejectDoc('${d.id}')">Rejeitar</button>
         </td>
       `;
       documentTableBody.appendChild(row);
     });
   }
 
-  function approveDoc(id) {
+  window.approveDoc = function(id) {
     updateItem(documentsKey, id, { status: 'Aprovado' });
     renderDocuments();
-  }
+  };
 
-  function rejectDoc(id) {
+  window.rejectDoc = function(id) {
     updateItem(documentsKey, id, { status: 'Rejeitado' });
     renderDocuments();
-  }
+  };
 
   function renderPayments() {
     const txns = getData(paymentsKey);

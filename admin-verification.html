@@ -6,38 +6,67 @@
   <title>Admin — Verificações</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
     .loading { padding: 1rem; color: var(--muted); }
     .muted { color: var(--muted); }
-    .card { border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
-    .card-footer { margin-top: 0.5rem; }
+    .card { border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin-bottom: 1rem; background:#fff; }
+    .card-footer { margin-top: 0.5rem; display:flex; gap:8px; }
     .btn { padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; }
     .btn-sm { font-size: 0.85rem; }
     .btn-primary { background: var(--accent); color: #fff; border: none; }
+    #verifMsg { margin-top:10px; }
   </style>
 </head>
 <body>
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="brand" href="index.html">
-      <span class="logo">A</span><span class="brand-name">AgriConnect</span>
-    </a>
-  </div>
-</header>
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html" class="active">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="dashboard-transporter.html">🚛 Transportador</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+</div>
 
-<main class="container">
+<div class="main">
   <h1>Verificações de Documentos</h1>
+  <p id="userInfo">Carregando sessão...</p>
   <div id="verifList" class="grid cards-grid"></div>
   <div id="verifMsg" class="muted"></div>
-</main>
+</div>
 
 <footer class="site-footer">
   <div class="container">© <span id="yearAV"></span> AgriConnect Angola</div>
 </footer>
 
-<script>
+<script src="js/app.js"></script>
+<script type="module">
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
+
   document.getElementById('yearAV').innerText = new Date().getFullYear();
 
-  // --- small helpers ---
+  const user = getSession();
+  renderUserInfo('#userInfo');
+  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
+
   async function fetchJSON(url, opts={}) {
     const res = await fetch(url, opts);
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -49,18 +78,19 @@
     ));
   }
 
-  // --- load pending documents ---
-  (async function loadVerifications(){
+  async function loadVerifications(){
     const area = document.getElementById('verifList');
+    const msg = document.getElementById('verifMsg');
     area.innerHTML = '<div class="loading">Carregando...</div>';
     try {
       const data = await fetchJSON('/api/admin/verification?status=PENDING_REVIEW');
       const docs = Array.isArray(data) ? data : (data.documents || data);
       area.innerHTML = '';
       if (!docs || docs.length===0) {
-        document.getElementById('verifMsg').textContent='Nenhum documento pendente.';
+        msg.textContent='Nenhum documento pendente.';
         return;
       }
+      msg.textContent='';
       docs.forEach(d=>{
         const item = document.createElement('div'); item.className='card';
         item.innerHTML = `
@@ -76,41 +106,45 @@
         item.querySelectorAll('button').forEach(btn=>{
           btn.addEventListener('click', async () => {
             const id = btn.dataset.id; const action = btn.dataset.action;
-            if (action === 'reject') {
-              const note = prompt('Motivo da rejeição (opcional):');
-              if (note === null) return;
-              await patchVerify(id, 'REJECTED', note);
-            } else {
-              await patchVerify(id, 'APPROVED');
+            btn.disabled = true;
+            btn.textContent = 'Aguarde…';
+            try {
+              if (action === 'reject') {
+                const note = prompt('Motivo da rejeição (opcional):');
+                if (note === null) { btn.disabled=false; btn.textContent=action==='approve'?'Aprovar':'Rejeitar'; return; }
+                await patchVerify(id, 'REJECTED', note);
+              } else {
+                await patchVerify(id, 'APPROVED');
+              }
+              item.remove();
+              msg.textContent = '✅ Documento atualizado.';
+            } catch (err) {
+              msg.textContent = '❌ Erro: ' + err.message;
+              btn.disabled=false;
+              btn.textContent=action==='approve'?'Aprovar':'Rejeitar';
             }
-            item.remove();
           });
         });
         area.appendChild(item);
       });
     } catch (err) {
-      console.error(err);
-      area.innerHTML = '<div class="muted">Erro ao carregar verificações</div>';
-    }
-  })();
-
-  // --- call PATCH route ---
-  async function patchVerify(id, status, notes='') {
-    try {
-      const res = await fetch(`/api/admin/verification/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ status, notes })
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(()=>({}));
-        throw new Error(j.error || 'Falha');
-      }
-      alert('Documento atualizado: '+status);
-    } catch (err) {
-      alert('Erro: ' + err.message);
+      area.innerHTML = '<div class="muted">❌ Erro ao carregar verificações</div>';
     }
   }
+
+  async function patchVerify(id, status, notes='') {
+    const res = await fetch(`/api/admin/verification/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ status, notes })
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(()=>({}));
+      throw new Error(j.error || 'Falha');
+    }
+  }
+
+  loadVerifications();
 </script>
 </body>
 </html>

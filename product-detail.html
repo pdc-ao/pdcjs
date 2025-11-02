@@ -5,44 +5,80 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Produto — Detalhes</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    .card-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; }
+    .price { font-weight:600; font-size:1.1rem; }
+  </style>
 </head>
 <body>
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a>
-    <nav class="main-nav"><a href="products.html">Produtos</a><a href="dashboard.html">Dashboard</a><a href="auth.html">Entrar</a></nav>
-  </div>
-</header>
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html" class="active">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="dashboard-transporter.html">🚛 Transportador</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
+</div>
 
-<main class="container">
-  <div id="productArea">
-    <div class="loading">Carregando produto...</div>
-  </div>
-</main>
+<div class="main">
+  <h1>Detalhes do Produto</h1>
+  <p id="userInfo">Carregando sessão...</p>
+  <div id="productArea" class="card">Carregando produto...</div>
+</div>
 
-<footer class="site-footer"><div class="container">© <span id="yearPD"></span> AgriConnect Angola</div></footer>
+<footer class="site-footer">
+  <div class="container">© <span id="yearPD"></span> AgriConnect Angola</div>
+</footer>
 
 <script src="js/app.js"></script>
-<script>
+<script type="module">
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
+
   document.getElementById('yearPD').innerText = new Date().getFullYear();
 
-  (async function loadProduct() {
-    const params = new URLSearchParams(location.search);
-    const id = params.get('id');
-    const area = document.getElementById('productArea');
-    if (!id) {
-      area.innerHTML = '<div class="muted">ID do produto ausente na query string.</div>';
-      return;
-    }
+  const user = getSession();
+  renderUserInfo('#userInfo');
+  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
 
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  const area = document.getElementById('productArea');
+
+  if (!id) {
+    area.innerHTML = '<div class="muted">ID do produto ausente na query string.</div>';
+  } else {
+    loadProduct(id);
+  }
+
+  async function loadProduct(id) {
     area.innerHTML = '<div class="loading">Carregando produto...</div>';
     try {
-      // Try server endpoint /api/products/:id first, fallback to query param variant
       let product = null;
       try {
         const res = await fetch(`/api/products/${encodeURIComponent(id)}`);
         if (res.ok) product = await res.json();
-      } catch (e) { /* ignore */ }
+      } catch (e) {}
       if (!product) {
         const res2 = await fetch(`/api/products?productId=${encodeURIComponent(id)}`);
         if (res2.ok) {
@@ -50,36 +86,40 @@
           product = (json.products && json.products[0]) || (Array.isArray(json) && json[0]) || json;
         }
       }
-
       if (!product) {
         area.innerHTML = '<div class="muted">Produto não encontrado.</div>';
         return;
       }
 
+      const buyAction = user ? 
+        `<a href="checkout.html?productId=${product.id}" class="btn btn-sm btn-primary">Comprar</a>` :
+        `<a href="auth.html" class="btn btn-sm btn-primary">Entrar para Comprar</a>`;
+
+      const contactAction = user ? 
+        `<a href="messages.html?to=${encodeURIComponent(product.producer?.id || '')}" class="btn btn-sm">Contactar Produtor</a>` :
+        `<a href="auth.html" class="btn btn-sm">Entrar para Contactar</a>`;
+
       area.innerHTML = `
-          <article class="card">
-            <div class="card-body">
-              <h2 class="card-title">${escapeHtml(product.title)}</h2>
-              <p class="muted">Categoria: ${escapeHtml(product.category || '')} ${product.subcategory ? ' / ' + escapeHtml(product.subcategory) : ''}</p>
-              <p class="card-desc">${escapeHtml(product.description || '')}</p>
-              <p><strong>Disponível:</strong> ${product.quantityAvailable} ${escapeHtml(product.unitOfMeasure || '')}</p>
-              <p><strong>Preço:</strong> ${product.pricePerUnit} ${escapeHtml(product.currency||'AOA')} / ${escapeHtml(product.unitOfMeasure || '')}</p>
-              <p><strong>Produtor:</strong> ${escapeHtml(product.producer?.fullName || product.producer?.username || '')} ${product.producer?.isVerified ? '✅' : ''}</p>
+        <article>
+          <h2 class="card-title">${escapeHtml(product.title)}</h2>
+          <p class="muted">Categoria: ${escapeHtml(product.category || '')} ${product.subcategory ? ' / ' + escapeHtml(product.subcategory) : ''}</p>
+          <p class="card-desc">${escapeHtml(product.description || '')}</p>
+          <p><strong>Disponível:</strong> ${product.quantityAvailable} ${escapeHtml(product.unitOfMeasure || '')}</p>
+          <p><strong>Preço:</strong> ${product.pricePerUnit} ${escapeHtml(product.currency||'AOA')} / ${escapeHtml(product.unitOfMeasure || '')}</p>
+          <p><strong>Produtor:</strong> ${escapeHtml(product.producer?.fullName || product.producer?.username || '')} ${product.producer?.isVerified ? '✅' : ''}</p>
+          <div class="card-footer">
+            <div class="price">${product.pricePerUnit} ${product.currency || 'AOA'}</div>
+            <div class="actions">
+              ${buyAction}
+              ${contactAction}
             </div>
-            <div class="card-footer">
-              <div class="price">${product.pricePerUnit} ${product.currency || 'AOA'}</div>
-              <div class="actions">
-                <a href="auth.html" class="btn btn-sm btn-primary">Comprar (Entrar)</a>
-                <a href="dashboard.html" class="btn btn-sm">Contactar Produtor</a>
-              </div>
-            </div>
-          </article>
-        `;
+          </div>
+        </article>
+      `;
     } catch (err) {
-      console.error(err);
       area.innerHTML = `<div class="muted">Erro carregando produto: ${escapeHtml(err.message)}</div>`;
     }
-  })();
+  }
 </script>
 </body>
 </html>

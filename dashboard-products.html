@@ -6,9 +6,15 @@
   <title>Dashboard — Produtos</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 0.5rem; border-bottom: 1px solid #ddd; }
-    .actions button { margin-right: 0.25rem; }
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+    th { background: #f9fafb; font-weight: 600; }
+    .btn-sm { font-size: 14px; padding: 4px 8px; margin-right: 4px; }
     .modal {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
@@ -32,7 +38,15 @@
   <a href="dashboard-wallet.html">💳 Pagamentos</a>
   <a href="dashboard-notifications.html">🔔 Notificações</a>
   <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
   <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
 <div class="main">
@@ -80,7 +94,7 @@
         </select>
       </label><br/>
       <button type="submit" class="btn btn-primary">Salvar</button>
-      <button type="button" id="closeModal">Cancelar</button>
+      <button type="button" id="closeModal" class="btn btn-outline">Cancelar</button>
     </form>
   </div>
 </div>
@@ -90,7 +104,10 @@
 
   const user = getSession();
   renderUserInfo('#userInfo');
-  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
+  document.getElementById('logoutBtn').addEventListener('click', e => { 
+    e.preventDefault(); 
+    logout(); 
+  });
 
   const productTableBody = document.getElementById('productTableBody');
   const productForm = document.getElementById('productForm');
@@ -117,7 +134,7 @@
           <td>${p.pricePerUnit}/${p.unitOfMeasure}</td>
           <td>${p.quantityAvailable}</td>
           <td>${p.status}</td>
-          <td class="actions"><button class="btn btn-sm">Editar</button></td>
+          <td class="actions"><button class="btn btn-sm btn-outline">Editar</button></td>
         `;
         row.querySelector('button').onclick = () => openEditModal(p);
         productTableBody.appendChild(row);
@@ -127,9 +144,28 @@
     }
   }
 
+  // Validação simples
+  function validateForm(fd) {
+    for (let [key, value] of fd.entries()) {
+      if (!value) {
+        alert(`O campo "${key}" é obrigatório.`);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Submissão com estado de carregamento
   productForm.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(productForm);
+    if (!validateForm(fd)) return;
+
+    const btn = productForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Aguarde…';
+
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
@@ -151,6 +187,9 @@
       await loadProducts();
     } catch (err) {
       alert('Erro: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
     }
   });
 
@@ -166,9 +205,24 @@
 
   closeModalBtn.onclick = () => { editModal.style.display = 'none'; };
 
+  // Fechar modal ao clicar fora
+  window.onclick = (e) => {
+    if (e.target === editModal) {
+      editModal.style.display = 'none';
+    }
+  };
+
+  // Edit form com estado de carregamento
   editForm.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(editForm);
+    if (!validateForm(fd)) return;
+
+    const btn = editForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Aguarde…';
+
     try {
       const res = await fetch(`/api/products/${fd.get('id')}`, {
         method: 'PATCH',
@@ -189,9 +243,13 @@
       await loadProducts();
     } catch (err) {
       alert('Erro: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
     }
   });
 
+  // carregar produtos ao iniciar
   loadProducts();
 </script>
 </body>

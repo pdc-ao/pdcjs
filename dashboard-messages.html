@@ -6,6 +6,10 @@
   <title>Mensagens — Dashboard</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
     .chat-container { display: flex; height: 80vh; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
     .conversations { width: 30%; border-right: 1px solid var(--border); overflow-y: auto; }
     .conversation { padding: 0.75rem; cursor: pointer; border-bottom: 1px solid var(--border); }
@@ -17,19 +21,36 @@
     .message .bubble { display: inline-block; padding: 0.5rem 0.75rem; border-radius: 12px; max-width: 70%; }
     .message.me .bubble { background: var(--accent); color: #fff; }
     .message.them .bubble { background: #eee; }
-    .message-form { display: flex; border-top: 1px solid var(--border); }
-    .message-form input { flex: 1; padding: 0.5rem; border: none; }
-    .message-form button { padding: 0.5rem 1rem; border: none; background: var(--accent); color: #fff; cursor: pointer; }
+    .message-form { display: flex; border-top: 1px solid var(--border); gap: 8px; padding: 8px; }
+    .message-form input { flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 8px; }
   </style>
 </head>
 <body>
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a>
-  </div>
-</header>
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html" class="active">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
+</div>
 
-<main class="container">
+<div class="main">
   <h1>Mensagens</h1>
   <div class="chat-container">
     <div class="conversations" id="conversations"></div>
@@ -37,11 +58,11 @@
       <div class="messages-list" id="messagesList">Selecione uma conversa</div>
       <form id="messageForm" class="message-form">
         <input type="text" id="messageInput" placeholder="Escreva uma mensagem..." />
-        <button type="submit">Enviar</button>
+        <button type="submit" class="btn btn-primary">Enviar</button>
       </form>
     </div>
   </div>
-</main>
+</div>
 
 <footer class="site-footer">
   <div class="container">© <span id="yearMsg"></span> AgriConnect Angola</div>
@@ -51,73 +72,111 @@
 <script>
   document.getElementById('yearMsg').innerText = new Date().getFullYear();
 
-  const user = getDemoSession(); // from app.js
+  // logout handler
+  document.getElementById('logoutBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.removeItem('pdc_user_data');
+    localStorage.removeItem('pdc_auth_token');
+    location.href = 'auth.html';
+  });
+
+  const user = JSON.parse(localStorage.getItem('pdc_user_data'));
+  const conversationsEl = document.getElementById('conversations');
+  const messagesListEl = document.getElementById('messagesList');
+  const messageForm = document.getElementById('messageForm');
+  const messageInput = document.getElementById('messageInput');
+
+  if (!user) {
+    messagesListEl.innerHTML = '<div class="muted">Faça login para ver mensagens.</div>';
+  }
+
   let currentConversationId = null;
   let currentReceiverId = null;
   let pollInterval = null;
 
   async function loadConversations() {
-    const res = await fetch(`/api/messages?senderId=${encodeURIComponent(user.id)}`);
-    const data = await res.json();
-    const convs = document.getElementById('conversations');
-    convs.innerHTML = '';
-    const grouped = {};
-    data.messages.forEach(m => {
-      grouped[m.conversationId] = m;
-    });
-    Object.values(grouped).forEach(m => {
-      const other = m.senderId === user.id ? m.receiver : m.sender;
-      const el = document.createElement('div');
-      el.className = 'conversation';
-      el.textContent = other.fullName || other.username || other.id;
-      el.onclick = () => openConversation(other.id, m.conversationId);
-      convs.appendChild(el);
-    });
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/messages?senderId=${encodeURIComponent(user.id)}`);
+      const data = await res.json();
+      conversationsEl.innerHTML = '';
+      const grouped = {};
+      (data.messages || []).forEach(m => {
+        grouped[m.conversationId] = m;
+      });
+      Object.values(grouped).forEach(m => {
+        const other = m.senderId === user.id ? m.receiver : m.sender;
+        const el = document.createElement('div');
+        el.className = 'conversation';
+        el.textContent = (other && (other.fullName || other.username)) || other?.id || 'Sem nome';
+        el.onclick = () => openConversation(other.id, m.conversationId);
+        conversationsEl.appendChild(el);
+      });
+      if (!Object.keys(grouped).length) {
+        conversationsEl.innerHTML = '<div class="muted" style="padding:0.75rem;">Sem conversas ainda.</div>';
+      }
+    } catch (err) {
+      conversationsEl.innerHTML = '<div class="muted" style="padding:0.75rem;">Erro ao carregar conversas.</div>';
+    }
   }
 
   async function openConversation(receiverId, conversationId) {
     currentReceiverId = receiverId;
     currentConversationId = conversationId;
     await loadMessages();
-
-    // Clear any existing polling loop
     if (pollInterval) clearInterval(pollInterval);
-    // Start polling every 5 seconds
     pollInterval = setInterval(loadMessages, 5000);
   }
 
   async function loadMessages() {
-    if (!currentReceiverId || !currentConversationId) return;
-    const res = await fetch(`/api/messages?senderId=${user.id}&receiverId=${currentReceiverId}&conversationId=${currentConversationId}&limit=100`);
-    const data = await res.json();
-    const list = document.getElementById('messagesList');
-    list.innerHTML = '';
-    data.messages.forEach(m => {
-      const mine = m.senderId === user.id;
-      const div = document.createElement('div');
-      div.className = 'message ' + (mine ? 'me' : 'them');
-      div.innerHTML = `<div class="bubble">${escapeHtml(m.messageContent)}</div>`;
-      list.appendChild(div);
-    });
-    list.scrollTop = list.scrollHeight;
+    if (!currentReceiverId || !currentConversationId || !user) return;
+    try {
+      const res = await fetch(`/api/messages?senderId=${encodeURIComponent(user.id)}&receiverId=${encodeURIComponent(currentReceiverId)}&conversationId=${encodeURIComponent(currentConversationId)}&limit=100`);
+      const data = await res.json();
+      messagesListEl.innerHTML = '';
+      (data.messages || []).forEach(m => {
+        const mine = m.senderId === user.id;
+        const div = document.createElement('div');
+        div.className = 'message ' + (mine ? 'me' : 'them');
+        div.innerHTML = `<div class="bubble">${escapeHtml(m.messageContent || '')}</div>`;
+        messagesListEl.appendChild(div);
+      });
+      messagesListEl.scrollTop = messagesListEl.scrollHeight;
+      if (!(data.messages || []).length) {
+        messagesListEl.innerHTML = '<div class="muted">Sem mensagens nesta conversa.</div>';
+      }
+    } catch (err) {
+      messagesListEl.innerHTML = '<div class="muted">Erro ao carregar mensagens.</div>';
+    }
   }
 
-  document.getElementById('messageForm').addEventListener('submit', async (e) => {
+  messageForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const input = document.getElementById('messageInput');
-    const text = input.value.trim();
+    if (!user) return;
+    const text = messageInput.value.trim();
     if (!text || !currentReceiverId) return;
-    const res = await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ receiverId: currentReceiverId, messageContent: text, conversationId: currentConversationId })
-    });
-    if (res.ok) {
-      input.value = '';
-      await loadMessages(); // refresh immediately after sending
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverId: currentReceiverId,
+          messageContent: text,
+          conversationId: currentConversationId
+        })
+      });
+      if (res.ok) {
+        messageInput.value = '';
+        await loadMessages(); // refresh immediately after sending
+      } else {
+        messagesListEl.insertAdjacentHTML('beforeend', '<div class="muted">Falha ao enviar mensagem.</div>');
+      }
+    } catch (err) {
+      messagesListEl.insertAdjacentHTML('beforeend', '<div class="muted">Erro de rede ao enviar mensagem.</div>');
     }
   });
 
+  // initial load
   loadConversations();
 </script>
 </body>

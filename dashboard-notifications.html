@@ -5,13 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Notificações</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    #notificationList { list-style: none; padding-left: 0; margin: 0; }
+    #notificationList li { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: #fff; }
+    #notificationList li .time { color: var(--muted); font-size: 14px; margin-left: 8px; }
+    .prefs-grid label { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .btn { margin-top: 8px; }
+  </style>
 </head>
 <body>
 <div class="sidebar">
-<div class="sidebar">
   <h2>AgriConnect</h2>
   <a href="dashboard.html">📊 Dashboard</a>
-  <a href="dashboard-products.html" class="active">📦 Produtos</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
   <a href="dashboard-orders.html">🛒 Pedidos</a>
   <a href="dashboard-storage.html">🏭 Armazenamento</a>
   <a href="dashboard-transport.html">🚚 Transporte</a>
@@ -19,9 +30,17 @@
   <a href="dashboard-messages.html">💬 Mensagens</a>
   <a href="dashboard-reviews.html">⭐ Avaliações</a>
   <a href="dashboard-wallet.html">💳 Pagamentos</a>
-  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-notifications.html" class="active">🔔 Notificações</a>
   <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
   <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
 <div class="main">
@@ -30,74 +49,112 @@
 
   <div class="card">
     <h2>Alertas Recentes</h2>
-    <ul id="notificationList"></ul>
+    <ul id="notificationList" role="list"></ul>
+    <div id="notifMsg" class="muted"></div>
+    <button id="markAllBtn" class="btn btn-sm">Marcar todas como lidas</button>
   </div>
 
   <div class="card">
     <h2>Preferências de Notificação</h2>
-    <form id="preferencesForm">
-      <label><input type="checkbox" name="email" /> Receber por email</label><br/>
-      <label><input type="checkbox" name="sms" /> Receber por SMS</label><br/>
-      <label><input type="checkbox" name="app" /> Notificações no aplicativo</label><br/>
+    <form id="preferencesForm" class="prefs-grid">
+      <fieldset>
+        <legend>Escolha como deseja receber notificações:</legend>
+        <label><input type="checkbox" name="email" /> Receber por email</label><br/>
+        <label><input type="checkbox" name="sms" /> Receber por SMS</label><br/>
+        <label><input type="checkbox" name="app" /> Notificações no aplicativo</label><br/>
+      </fieldset>
       <button class="btn btn-primary" type="submit">Salvar Preferências</button>
     </form>
+    <div id="prefsMsg" class="muted" style="margin-top:8px;"></div>
   </div>
 </div>
 
 <script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    setData,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+  import { getSession, logout, getData, setData, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
   renderUserInfo('#userInfo');
+  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
 
-  document.getElementById('logoutBtn').addEventListener('click', e => {
-    e.preventDefault();
-    logout();
-  });
+  const notificationsKey = 'pdc_notifications_demo';
+  const preferencesKey = 'pdc_preferences_demo';
 
-  const notificationsKey = 'agri_notifications_demo';
-  const preferencesKey = 'agri_preferences_demo';
   const notificationList = document.getElementById('notificationList');
   const preferencesForm = document.getElementById('preferencesForm');
+  const notifMsg = document.getElementById('notifMsg');
+  const prefsMsg = document.getElementById('prefsMsg');
+  const markAllBtn = document.getElementById('markAllBtn');
 
   function renderNotifications() {
-    const alerts = getData(notificationsKey);
     notificationList.innerHTML = '';
-    alerts.filter(n => n.userId === user.email).forEach(n => {
+    if (!user) {
+      notifMsg.textContent = 'Faça login para ver notificações.';
+      return;
+    }
+    const alerts = getData(notificationsKey) || [];
+    const userAlerts = alerts.filter(n => n.userId === (user.email || user.id));
+    if (!userAlerts.length) {
+      notifMsg.textContent = 'Sem alertas recentes.';
+      return;
+    }
+    notifMsg.textContent = '';
+    userAlerts.forEach(n => {
       const li = document.createElement('li');
-      li.textContent = `${n.icon || '🔔'} ${n.message}`;
+      li.setAttribute('role','listitem');
+      const icon = n.icon || '🔔';
+      const time = n.time ? new Date(n.time).toLocaleString('pt-AO') : '';
+      li.innerHTML = `${icon} ${n.message}${time ? `<span class="time">• ${time}</span>` : ''}`;
       notificationList.appendChild(li);
     });
   }
 
   function loadPreferences() {
-    const prefs = getData(preferencesKey).find(p => p.userId === user.email);
+    if (!user) {
+      prefsMsg.textContent = 'Faça login para ajustar preferências.';
+      return;
+    }
+    const all = getData(preferencesKey) || [];
+    const prefs = all.find(p => p.userId === (user.email || user.id));
     if (prefs) {
-      preferencesForm.email.checked = prefs.email;
-      preferencesForm.sms.checked = prefs.sms;
-      preferencesForm.app.checked = prefs.app;
+      preferencesForm.email.checked = !!prefs.email;
+      preferencesForm.sms.checked = !!prefs.sms;
+      preferencesForm.app.checked = !!prefs.app;
+      prefsMsg.textContent = 'Preferências carregadas.';
+    } else {
+      prefsMsg.textContent = 'Sem preferências salvas.';
     }
   }
 
   preferencesForm.addEventListener('submit', e => {
     e.preventDefault();
+    if (!user) return;
+    const btn = preferencesForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Aguarde…';
     const prefs = {
-      userId: user.email,
+      userId: user.email || user.id,
       email: preferencesForm.email.checked,
       sms: preferencesForm.sms.checked,
       app: preferencesForm.app.checked
     };
-    const allPrefs = getData(preferencesKey).filter(p => p.userId !== user.email);
-    allPrefs.push(prefs);
-    setData(preferencesKey, allPrefs);
-    alert('Preferências salvas!');
+    const all = (getData(preferencesKey) || []).filter(p => p.userId !== (user.email || user.id));
+    all.push(prefs);
+    setData(preferencesKey, all);
+    prefsMsg.textContent = '✅ Preferências salvas!';
+    btn.disabled = false;
+    btn.textContent = oldText;
+  });
+
+  markAllBtn.addEventListener('click', () => {
+    if (!user) return;
+    const alerts = (getData(notificationsKey) || []).map(n => {
+      if (n.userId === (user.email || user.id)) return { ...n, read: true };
+      return n;
+    });
+    setData(notificationsKey, alerts);
+    notifMsg.textContent = 'Todas as notificações foram marcadas como lidas.';
+    renderNotifications();
   });
 
   renderNotifications();

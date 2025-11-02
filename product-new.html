@@ -5,14 +5,49 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Novo Produto — AgriConnect</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    form.auth-page label { display:block; margin-bottom:10px; }
+    form.auth-page input, form.auth-page textarea { width:100%; padding:8px; }
+    .form-actions { margin-top: 12px; }
+    #msg { margin-top: 10px; }
+  </style>
 </head>
 <body>
-<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html" class="active">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="dashboard-transporter.html">🚛 Transportador</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
+</div>
 
-<main class="container">
-  <h1>Criar nova listagem</h1>
+<div class="main">
+  <h1>Criar novo produto</h1>
+  <p id="userInfo">Carregando sessão...</p>
   <div id="msg" class="muted"></div>
-  <form id="productForm" class="auth-page" style="max-width:700px">
+
+  <form id="productForm" class="card auth-page" style="max-width:700px">
     <label>Título<input name="title" required /></label>
     <label>Descrição<textarea name="description" rows="4"></textarea></label>
     <label>Categoria<input name="category" required /></label>
@@ -24,45 +59,51 @@
       <button type="submit" class="btn btn-primary">Criar</button>
     </div>
   </form>
-</main>
+</div>
 
-<footer class="site-footer"><div class="container">© <span id="yearPN"></span> AgriConnect Angola</div></footer>
+<footer class="site-footer">
+  <div class="container">© <span id="yearPN"></span> AgriConnect Angola</div>
+</footer>
 
-<script src="app.js"></script>
-<script>
+<script src="js/app.js"></script>
+<script type="module">
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
+
   document.getElementById('yearPN').innerText = new Date().getFullYear();
 
-  document.getElementById('productForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const f = Object.fromEntries(new FormData(e.target));
-    const msg = document.getElementById('msg');
-    msg.textContent = '';
+  const user = getSession();
+  renderUserInfo('#userInfo');
+  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
 
-    // Demo mode: if no server session, store locally; otherwise POST to /api/products
-    const user = getDemoSession();
-    if (!user) {
-      // demo: localStorage store
-      const key = 'agri_demo_products';
-      const arr = JSON.parse(localStorage.getItem(key) || '[]');
-      const p = { id: 'demo-'+Date.now(), ...f, producerId: 'demo-user' };
-      arr.unshift(p);
-      localStorage.setItem(key, JSON.stringify(arr));
-      alert('Produto criado (modo demo).');
-      return;
-    }
+  const productForm = document.getElementById('productForm');
+  const msg = document.getElementById('msg');
+
+  productForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(productForm);
+    const payload = Object.fromEntries(fd);
+
+    const btn = productForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Aguarde…';
+    msg.textContent = '';
 
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify(f),
+        body: JSON.stringify({ ...payload, producerId: user?.id || user?.email })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Falha ao criar produto');
-      alert('Produto criado com sucesso.');
-      location.href = 'dashboard-products.html';
+      msg.textContent = '✅ Produto criado com sucesso!';
+      setTimeout(()=>{ location.href = 'dashboard-products.html'; }, 800);
     } catch (err) {
-      msg.textContent = 'Erro: ' + err.message;
+      msg.textContent = '❌ Erro: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
     }
   });
 </script>

@@ -5,13 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Pedidos</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+    th { background: #f9fafb; font-weight: 600; }
+    .btn-sm { font-size: 14px; padding: 4px 8px; margin-right: 4px; }
+  </style>
 </head>
 <body>
 <div class="sidebar">
   <h2>AgriConnect</h2>
   <a href="dashboard.html">📊 Dashboard</a>
-  <a href="dashboard-products.html" class="active">📦 Produtos</a>
-  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
+  <a href="dashboard-orders.html" class="active">🛒 Pedidos</a>
   <a href="dashboard-storage.html">🏭 Armazenamento</a>
   <a href="dashboard-transport.html">🚚 Transporte</a>
   <a href="dashboard-transformation.html">⚙️ Transformação</a>
@@ -20,7 +31,15 @@
   <a href="dashboard-wallet.html">💳 Pagamentos</a>
   <a href="dashboard-notifications.html">🔔 Notificações</a>
   <a href="dashboard-admin.html">🛠️ Admin</a>
-  <a href="auth.html" id="logoutBtn">🚪 Sair</a>debar links -->
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
 <div class="main">
@@ -54,7 +73,6 @@
     getSession,
     logout,
     getData,
-    setData,
     updateItem,
     addItem,
     renderUserInfo
@@ -68,43 +86,42 @@
     logout();
   });
 
-  const ordersKey = 'agri_orders_demo';
+  const ordersKey = 'pdc_orders_demo';
   const receivedTable = document.getElementById('receivedOrdersTable');
   const myTable = document.getElementById('myOrdersTable');
 
   function renderOrders() {
-    const orders = getData(ordersKey);
+    const orders = getData(ordersKey) || [];
     receivedTable.innerHTML = '';
     myTable.innerHTML = '';
 
     orders.forEach(order => {
       const row = document.createElement('tr');
+      const isSeller = order.sellerId === user.email;
+      const isBuyer = order.buyerId === user.email;
       row.innerHTML = `
         <td>${order.id}</td>
-        <td>${order.buyer}</td>
+        <td>${isSeller ? order.buyer : order.seller}</td>
         <td>${order.product}</td>
         <td>${order.quantity}</td>
         <td>${order.status}</td>
-        <td>${order.sellerId === user.email
-          ? `<button onclick="confirmOrder('${order.id}')">Confirmar</button>`
-          : `<button onclick="alert('Ver pedido ${order.id}')">Ver</button>`}
+        <td>
+          ${isSeller
+            ? `<button class="btn btn-sm btn-primary" onclick="confirmOrder('${order.id}')">Confirmar</button>`
+            : `<button class="btn btn-sm btn-outline" onclick="alert('Ver pedido ${order.id}')">Ver</button>`}
         </td>
       `;
-      if (order.sellerId === user.email) {
-        receivedTable.appendChild(row);
-      }
-      if (order.buyerId === user.email) {
-        myTable.appendChild(row);
-      }
+      if (isSeller) receivedTable.appendChild(row);
+      if (isBuyer) myTable.appendChild(row);
     });
   }
 
-  function confirmOrder(id) {
+  window.confirmOrder = function(id) {
     updateItem(ordersKey, id, { status: 'Confirmado' });
     renderOrders();
-  }
+  };
 
-  function simulateOrder() {
+  window.simulateOrder = function() {
     const newOrder = {
       id: 'ORD-' + Date.now(),
       buyerId: user.email,
@@ -117,7 +134,7 @@
     };
     addItem(ordersKey, newOrder);
     renderOrders();
-  }
+  };
 
   renderOrders();
 </script>

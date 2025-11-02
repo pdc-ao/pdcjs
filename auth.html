@@ -154,7 +154,8 @@
       document.getElementById('loginError').textContent = 'Preencha todos os campos';
       return;
     }
-    localStorage.setItem('agri_user', JSON.stringify({ email, role: 'CONSUMER', name: email }));
+    localStorage.setItem('pdc_user_data
+', JSON.stringify({ email, role: 'CONSUMER', name: email }));
     const redirect = new URLSearchParams(window.location.search).get('redirect') || 'dashboard.html';
     location.href = redirect;
   });

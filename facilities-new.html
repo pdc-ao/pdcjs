@@ -5,42 +5,148 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Nova Instalação — AgriConnect</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    form.auth-page label { display:block; margin-bottom:10px; }
+    form.auth-page input { width:100%; padding:8px; }
+    .form-actions { margin-top: 12px; }
+    #facMsg { margin-top: 10px; }
+  </style>
 </head>
 <body>
-<header class="site-header"><div class="container header-inner"><a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect</span></a></div></header>
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html" class="active">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="dashboard-transporter.html">🚛 Transportador</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
+</div>
 
-<main class="container">
+<div class="main">
   <h1>Nova Instalação</h1>
-  <form id="facForm" class="auth-page">
-    <label>Nome da Instalação<input name="facilityName" required /></label>
-    <label>Tipo<input name="facilityType" /></label>
-    <label>Capacidade<input name="capacity" type="number" /></label>
-    <label>Unidade<input name="capacityUnit" /></label>
-    <label>Endereço<input name="addressLine1" required /></label>
-    <label>Cidade<input name="city" required /></label>
-    <label>País<input name="country" value="Angola" /></label>
-    <div class="form-actions"><button class="btn btn-primary" type="submit">Criar</button></div>
+  <p id="userInfo">Carregando sessão...</p>
+
+  <form id="facForm" class="card auth-page">
+    <label>Nome da Instalação
+      <input name="facilityName" required />
+    </label>
+    <label>Tipo
+      <input name="facilityType" />
+    </label>
+    <label>Capacidade
+      <input name="capacity" type="number" />
+    </label>
+    <label>Unidade
+      <input name="capacityUnit" />
+    </label>
+    <label>Endereço
+      <input name="addressLine1" required />
+    </label>
+    <label>Cidade
+      <input name="city" required />
+    </label>
+    <label>País
+      <input name="country" value="Angola" />
+    </label>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Criar</button>
+      <a class="btn btn-outline btn-sm" href="dashboard-facilities.html">Voltar</a>
+    </div>
     <div id="facMsg" class="muted"></div>
   </form>
-</main>
+</div>
 
-<footer class="site-footer"><div class="container">© <span id="yearFN"></span> AgriConnect Angola</div></footer>
+<footer class="site-footer">
+  <div class="container">© <span id="yearFN"></span> AgriConnect Angola</div>
+</footer>
 
-<script src="app.js"></script>
-<script>
+<script src="js/app.js"></script>
+<script type="module">
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
+
   document.getElementById('yearFN').innerText = new Date().getFullYear();
-  document.getElementById('facForm').addEventListener('submit', async (e) => {
+
+  const user = getSession();
+  renderUserInfo('#userInfo');
+
+  document.getElementById('logoutBtn').addEventListener('click', e => {
     e.preventDefault();
-    const values = Object.fromEntries(new FormData(e.target));
-    const user = getDemoSession();
-    if (!user) { document.getElementById('facMsg').textContent = 'Faça login (demo) para criar.'; return; }
+    logout();
+  });
+
+  const facForm = document.getElementById('facForm');
+  const facMsg = document.getElementById('facMsg');
+
+  facForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(facForm);
+
+    // Simple validation
+    for (const key of ['facilityName','addressLine1','city']) {
+      if (!fd.get(key)) {
+        facMsg.textContent = `O campo "${key}" é obrigatório.`;
+        return;
+      }
+    }
+
+    const btn = facForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Aguarde…';
+    facMsg.textContent = '';
+
+    const payload = {
+      ownerId: user?.id || user?.email || 'demo-owner',
+      facilityName: fd.get('facilityName'),
+      facilityType: fd.get('facilityType') || '',
+      capacity: fd.get('capacity') ? Number(fd.get('capacity')) : null,
+      capacityUnit: fd.get('capacityUnit') || '',
+      addressLine1: fd.get('addressLine1'),
+      city: fd.get('city'),
+      country: fd.get('country') || 'Angola',
+      availabilityStatus: 'Disponível'
+    };
+
     try {
-      const res = await fetch('/api/facilities', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(values) });
-      if (!res.ok) { const j=await res.json().catch(()=>({})); throw new Error(j.error||'Falha'); }
-      alert('Instalação criada.');
-      location.href = 'dashboard-facilities.html';
+      const res = await fetch('/api/facilities', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(()=>({}));
+        throw new Error(j.error || 'Falha ao criar instalação');
+      }
+      facMsg.textContent = '✅ Instalação criada com sucesso!';
+      // Redirect after brief delay for UX
+      setTimeout(()=>{ location.href = 'dashboard-facilities.html'; }, 800);
     } catch (err) {
-      document.getElementById('facMsg').textContent = 'Erro: ' + err.message;
+      facMsg.textContent = '❌ Erro: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
     }
   });
 </script>

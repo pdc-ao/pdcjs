@@ -9,6 +9,11 @@
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 0.5rem; border-bottom: 1px solid #ddd; }
     .actions button { margin-right: 0.25rem; }
+    .btn-sm { font-size: 14px; padding: 4px 8px; }
+    .btn-outline { background: #fff; border: 1px solid var(--border); }
+    .btn-danger { background: #dc3545; color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .btn-success { background: #28a745; color: #fff; }
   </style>
 </head>
 <body>
@@ -25,7 +30,16 @@
   <a href="dashboard-wallet.html" class="active">💳 Pagamentos</a>
   <a href="dashboard-notifications.html">🔔 Notificações</a>
   <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="dashboard-transporter.html">🚛 Transportador</a>
   <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
 <div class="main">
@@ -72,6 +86,10 @@
       if (!res.ok) throw new Error('Erro ao carregar');
       const txns = await res.json();
       tbody.innerHTML = '';
+      if (!txns || txns.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">Sem transações ainda.</td></tr>';
+        return;
+      }
       txns.forEach(t => {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -82,24 +100,24 @@
         `;
         const actionsCell = row.querySelector('.actions');
         if (t.status === 'PENDING' && t.buyerId === user.id) {
-          actionsCell.appendChild(makeBtn('Fund', () => act(t.id, 'FUND')));
-          actionsCell.appendChild(makeBtn('Cancelar', () => act(t.id, 'CANCEL')));
+          actionsCell.appendChild(makeBtn('Fund', () => act(t.id, 'FUND'), 'btn btn-sm btn-primary'));
+          actionsCell.appendChild(makeBtn('Cancelar', () => act(t.id, 'CANCEL'), 'btn btn-sm btn-outline btn-danger'));
         }
         if (t.status === 'FUNDED' && t.sellerId === user.id) {
-          actionsCell.appendChild(makeBtn('Confirmar Venda', () => act(t.id, 'SELLER_CONFIRM')));
+          actionsCell.appendChild(makeBtn('Confirmar Venda', () => act(t.id, 'SELLER_CONFIRM'), 'btn btn-sm btn-primary'));
         }
         if (['FUNDED','SELLER_CONFIRMED'].includes(t.status) && t.buyerId === user.id) {
-          actionsCell.appendChild(makeBtn('Confirmar Compra', () => act(t.id, 'BUYER_CONFIRM')));
+          actionsCell.appendChild(makeBtn('Confirmar Compra', () => act(t.id, 'BUYER_CONFIRM'), 'btn btn-sm btn-primary'));
         }
         if (['FUNDED','SELLER_CONFIRMED','BUYER_CONFIRMED'].includes(t.status) && (t.buyerId === user.id || t.sellerId === user.id)) {
-          actionsCell.appendChild(makeBtn('Disputar', () => act(t.id, 'DISPUTE')));
+          actionsCell.appendChild(makeBtn('Disputar', () => act(t.id, 'DISPUTE'), 'btn btn-sm btn-outline btn-danger'));
         }
         if (user.role === 'ADMIN') {
           if (['BUYER_CONFIRMED','SELLER_CONFIRMED'].includes(t.status)) {
-            actionsCell.appendChild(makeBtn('Liberar', () => act(t.id, 'RELEASE')));
+            actionsCell.appendChild(makeBtn('Liberar', () => act(t.id, 'RELEASE'), 'btn btn-sm btn-success'));
           }
           if (t.status === 'DISPUTED') {
-            actionsCell.appendChild(makeBtn('Reembolsar', () => act(t.id, 'REFUND')));
+            actionsCell.appendChild(makeBtn('Reembolsar', () => act(t.id, 'REFUND'), 'btn btn-sm btn-warning'));
           }
         }
         tbody.appendChild(row);
@@ -109,14 +127,13 @@
     }
   }
 
-  function makeBtn(label, handler) {
+  function makeBtn(label, handler, classes) {
     const btn = document.createElement('button');
     btn.textContent = label;
-    btn.className = 'btn btn-sm btn-primary';
+    btn.className = classes;
     btn.onclick = handler;
     return btn;
   }
-
   async function act(id, action) {
     if (!confirm(`Executar ação ${action} na transação ${id}?`)) return;
     try {
@@ -137,7 +154,11 @@
 
   paymentForm.addEventListener('submit', async e => {
     e.preventDefault();
-    paymentMsg.textContent = 'Criando...';
+    const btn = paymentForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Aguarde…';
+    paymentMsg.textContent = '';
     const fd = new FormData(paymentForm);
     try {
       const res = await fetch('/api/payments/transactions', {
@@ -154,13 +175,17 @@
         throw new Error(err.error || 'Falha');
       }
       paymentForm.reset();
-      paymentMsg.textContent = 'Transação criada com sucesso!';
+      paymentMsg.textContent = '✅ Transação criada com sucesso!';
       await loadTransactions();
     } catch (err) {
-      paymentMsg.textContent = 'Erro: ' + err.message;
+      paymentMsg.textContent = '❌ Erro: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
     }
   });
 
+  // carregar transações ao iniciar
   loadTransactions();
 </script>
 </body>

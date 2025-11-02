@@ -5,23 +5,41 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Transformação</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+    th { background: #f9fafb; font-weight: 600; }
+    .btn-sm { font-size: 14px; padding: 4px 8px; margin-right: 4px; }
+  </style>
 </head>
 <body>
 <div class="sidebar">
-<div class="sidebar">
   <h2>AgriConnect</h2>
   <a href="dashboard.html">📊 Dashboard</a>
-  <a href="dashboard-products.html" class="active">📦 Produtos</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
   <a href="dashboard-orders.html">🛒 Pedidos</a>
   <a href="dashboard-storage.html">🏭 Armazenamento</a>
   <a href="dashboard-transport.html">🚚 Transporte</a>
-  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-transformation.html" class="active">⚙️ Transformação</a>
   <a href="dashboard-messages.html">💬 Mensagens</a>
   <a href="dashboard-reviews.html">⭐ Avaliações</a>
   <a href="dashboard-wallet.html">💳 Pagamentos</a>
   <a href="dashboard-notifications.html">🔔 Notificações</a>
   <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
   <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
 <div class="main">
@@ -36,6 +54,7 @@
       </thead>
       <tbody id="transformationTableBody"></tbody>
     </table>
+    <div id="transformationMsg" class="muted"></div>
   </div>
 
   <div class="card">
@@ -72,40 +91,60 @@
     logout();
   });
 
-  const transformationKey = 'agri_transformation_demo';
+  const transformationKey = 'pdc_transformation_demo';
   const transformationTableBody = document.getElementById('transformationTableBody');
   const transformationForm = document.getElementById('transformationForm');
+  const transformationMsg = document.getElementById('transformationMsg');
 
   function renderTransformations() {
-    const services = getData(transformationKey);
+    const services = getData(transformationKey) || [];
     transformationTableBody.innerHTML = '';
-    services.filter(s => s.ownerId === user.email).forEach(s => {
+    const myServices = services.filter(s => s.ownerId === user.email);
+    if (myServices.length === 0) {
+      transformationMsg.textContent = 'Sem serviços ainda.';
+      return;
+    }
+    transformationMsg.textContent = '';
+    myServices.forEach(s => {
       const row = document.createElement('tr');
       row.innerHTML = `
         <td>${s.name}</td>
         <td>${s.type}</td>
         <td>${s.location}</td>
         <td>${s.status}</td>
-        <td><button onclick="alert('Editar: ${s.id}')">Editar</button></td>
+        <td><button class="btn btn-sm btn-outline" onclick="alert('Editar: ${s.id}')">Editar</button></td>
       `;
       transformationTableBody.appendChild(row);
     });
   }
 
-  transformationForm.addEventListener('submit', e => {
+  transformationForm.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(transformationForm);
-    const newService = {
-      id: Date.now().toString(),
-      ownerId: user.email,
-      name: fd.get('name'),
-      type: fd.get('type'),
-      location: fd.get('location'),
-      status: fd.get('status')
-    };
-    addItem(transformationKey, newService);
-    transformationForm.reset();
-    renderTransformations();
+
+    const btn = transformationForm.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Aguarde…';
+
+    try {
+      const newService = {
+        id: Date.now().toString(),
+        ownerId: user.email,
+        name: fd.get('name'),
+        type: fd.get('type'),
+        location: fd.get('location'),
+        status: fd.get('status')
+      };
+      addItem(transformationKey, newService);
+      transformationForm.reset();
+      renderTransformations();
+    } catch (err) {
+      alert('Erro: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
   });
 
   renderTransformations();

@@ -5,43 +5,83 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Detalhe do Transporte — AgriConnect</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; }
+  </style>
 </head>
 <body>
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="brand" href="dashboard-transport.html"><span class="logo">A</span> AgriConnect</a>
-  </div>
-</header>
+<div class="sidebar">
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html" class="active">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="dashboard-transporter.html">🚛 Transportador</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
+</div>
 
-<main class="container">
+<div class="main">
   <h1>Detalhe do Transporte</h1>
+  <p id="userInfo">Carregando sessão...</p>
   <div id="transportDetail" class="card">Carregando...</div>
-</main>
+</div>
 
 <footer class="site-footer">
   <div class="container">© <span id="year"></span> AgriConnect Angola</div>
 </footer>
 
-<script src="js/api-bridge.js"></script>
 <script src="js/app.js"></script>
-<script>
+<script type="module">
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
+
   document.getElementById('year').innerText = new Date().getFullYear();
+
+  const user = getSession();
+  renderUserInfo('#userInfo');
+  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
+
   const params = new URLSearchParams(location.search);
   const id = params.get('id');
+  const detailEl = document.getElementById('transportDetail');
 
-  (async function() {
+  async function loadTransport() {
+    detailEl.textContent = 'Carregando...';
     try {
-      const transport = await fetchJSON('/api/transport/' + id);
-      document.getElementById('transportDetail').innerHTML = `
+      const res = await fetch(`/api/transport/${id}`);
+      if (!res.ok) throw new Error('Erro ao carregar transporte');
+      const transport = await res.json();
+      detailEl.innerHTML = `
         <h2>${escapeHtml(transport.companyName || 'Transporte')}</h2>
         <p><strong>Motorista:</strong> ${escapeHtml(transport.driverName || '')}</p>
         <p><strong>Veículo:</strong> ${escapeHtml(transport.vehicleRegistrationDetails || '')}</p>
+        <p><strong>Status:</strong> ${escapeHtml(transport.status || '—')}</p>
         <p><strong>Descrição:</strong> ${escapeHtml(transport.description || '')}</p>
       `;
     } catch (err) {
-      document.getElementById('transportDetail').textContent = 'Erro: ' + err.message;
+      detailEl.textContent = '❌ Erro: ' + err.message;
     }
-  })();
+  }
+
+  loadTransport();
 </script>
 </body>
 </html>

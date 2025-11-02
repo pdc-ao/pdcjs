@@ -1,4 +1,3 @@
-<!-- dashboard-offerings.html -->
 <!doctype html>
 <html lang="pt-PT">
 <head>
@@ -6,10 +5,41 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Serviços & Agendamentos</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+    th { background: #f9fafb; font-weight: 600; }
+    .btn-sm { font-size: 14px; padding: 4px 8px; margin-right: 4px; }
+  </style>
 </head>
 <body>
 <div class="sidebar">
-  <!-- same sidebar as before -->
+  <h2>AgriConnect</h2>
+  <a href="dashboard.html">📊 Dashboard</a>
+  <a href="dashboard-products.html">📦 Produtos</a>
+  <a href="dashboard-orders.html">🛒 Pedidos</a>
+  <a href="dashboard-storage.html">🏭 Armazenamento</a>
+  <a href="dashboard-transport.html">🚚 Transporte</a>
+  <a href="dashboard-transformation.html">⚙️ Transformação</a>
+  <a href="dashboard-messages.html">💬 Mensagens</a>
+  <a href="dashboard-reviews.html">⭐ Avaliações</a>
+  <a href="dashboard-wallet.html">💳 Pagamentos</a>
+  <a href="dashboard-notifications.html">🔔 Notificações</a>
+  <a href="dashboard-admin.html">🛠️ Admin</a>
+  <a href="dashboard-procurement.html">📥 Procurement</a>
+  <a href="dashboard-offerings.html" class="active">🎁 Ofertas</a>
+  <a href="dashboard-facilities.html">🏗️ Instalações</a>
+  <a href="dashboard-production.html">🧪 Produção</a>
+  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+  <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
 <div class="main">
@@ -23,7 +53,14 @@
         <tr><th>Título</th><th>Descrição</th><th>Status</th><th>Ações</th></tr>
       </thead>
       <tbody>
-        <tr><td>Consultoria Agrícola</td><td>Suporte técnico para produtores</td><td>Ativo</td><td><button>Editar</button></td></tr>
+        <tr>
+          <td>Consultoria Agrícola</td>
+          <td>Suporte técnico para produtores</td>
+          <td>Ativo</td>
+          <td>
+            <button class="btn btn-sm btn-outline">Editar</button>
+          </td>
+        </tr>
       </tbody>
     </table>
     <button class="btn btn-primary">Adicionar Novo Serviço</button>
@@ -39,7 +76,21 @@
 </div>
 
 <script>
-  // session logic same as previous pages
+  const user = JSON.parse(localStorage.getItem('pdc_user_data'));
+  const userInfo = document.getElementById('userInfo');
+
+  if (!user) {
+    userInfo.innerHTML = 'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
+  } else {
+    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.removeItem('pdc_user_data');
+    localStorage.removeItem('pdc_auth_token');
+    location.href = 'auth.html';
+  });
 </script>
 </body>
 </html>
