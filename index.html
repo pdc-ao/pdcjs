@@ -28,7 +28,7 @@
       <p class="lead">A maior plataforma digital agrícola de Angola. Conecte-se com produtores, encontre armazenamento e transporte.</p>
       <div class="cta">
         <a class="btn btn-primary" href="auth.html">Começar Agora</a>
-        <!-- <a class="btn btn-outline" href="products.html">Ver Produtos</a> -->
+        <a class="btn btn-outline" href="products.html">Ver Produtos</a>
       </div>
     </div>
   </section>
@@ -86,7 +86,6 @@
   </p>
 </section>
 
-<!-- ✅ CONTACTOS -->
 <section class="contact container">
   <div class="page-header">
     <h1>Entre em Contacto</h1>
@@ -122,25 +121,11 @@
 
   <section class="content-section">
     <h2>Envie-nos uma Mensagem</h2>
-    
     <form id="contactForm" class="contact-form">
-      <label>
-        Nome Completo *
-        <input type="text" name="name" required />
-      </label>
-
-      <label>
-        Email *
-        <input type="email" name="email" required />
-      </label>
-
-      <label>
-        Telefone
-        <input type="tel" name="phone" placeholder="+244 9XX XXX XXX" />
-      </label>
-
-      <label>
-        Assunto *
+      <label>Nome Completo *<input type="text" name="name" required /></label>
+      <label>Email *<input type="email" name="email" required /></label>
+      <label>Telefone<input type="tel" name="phone" placeholder="+244 9XX XXX XXX" /></label>
+      <label>Assunto *
         <select name="subject" required>
           <option value="">Selecione um assunto</option>
           <option value="Suporte Técnico">Suporte Técnico</option>
@@ -151,56 +136,47 @@
           <option value="Outro">Outro</option>
         </select>
       </label>
-
-      <label>
-        Mensagem *
+      <label>Mensagem *
         <textarea name="message" required placeholder="Descreva sua questão ou comentário..."></textarea>
       </label>
-
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Enviar Mensagem</button>
       </div>
-
       <div id="contactMsg" class="muted" style="margin-top: 1rem;"></div>
     </form>
   </section>
 
   <section class="content-section">
     <h2>Perguntas Frequentes</h2>
-    
     <div class="faq-item" style="margin-bottom: 1.5rem;">
       <h3>Como posso registar-me na plataforma?</h3>
       <p>Clique em "Entrar / Registrar" no menu superior e siga as instruções. O registo é gratuito!</p>
     </div>
-
     <div class="faq-item" style="margin-bottom: 1.5rem;">
       <h3>Quais são as taxas da plataforma?</h3>
-      <p>Cobramos uma pequena comissão sobre cada transação concluída. Contacte-nos para mais detalhes sobre os nossos planos.</p>
+      <p>Cobramos uma pequena comissão sobre cada transação concluída. Contacte-nos para mais detalhes.</p>
     </div>
-
     <div class="faq-item" style="margin-bottom: 1.5rem;">
       <h3>Como funciona o sistema de pagamentos?</h3>
-      <p>Utilizamos um sistema de escrow (custódia) que garante a segurança de comprador e vendedor. O pagamento só é liberado após confirmação da entrega.</p>
+      <p>Usamos custódia (escrow) e liberamos após confirmação da entrega.</p>
     </div>
-
     <div class="faq-item" style="margin-bottom: 1.5rem;">
       <h3>Posso vender produtos em todo o país?</h3>
-      <p>Sim! A AgriConnect conecta produtores e consumidores em todas as 18 províncias de Angola.</p>
+      <p>Sim! AgriConnect cobre todas as 18 províncias de Angola.</p>
     </div>
-
     <div class="faq-item" style="margin-bottom: 1.5rem;">
       <h3>Como posso verificar minha conta?</h3>
-      <p>Após o registo, aceda à área de envio de documentos e submeta os documentos necessários. Nossa equipe verificará em até 48 horas.</p>
+      <p>Envie seus documentos e nossa equipe verifica em até 48 horas.</p>
     </div>
   </section>
 
   <section class="content-section">
     <h2>Siga-nos nas Redes Sociais</h2>
     <div style="text-align: center; font-size: 2rem; margin: 2rem 0;">
-      <a href="#" style="margin: 0 1rem; text-decoration: none;">📘 Facebook</a>
-      <a href="#" style="margin: 0 1rem; text-decoration: none;">📷 Instagram</a>
-      <a href="#" style="margin: 0 1rem; text-decoration: none;">🐦 Twitter</a>
-      <a href="#" style="margin: 0 1rem; text-decoration: none;">💼 LinkedIn</a>
+      <a href="#" style="margin: 0 1rem;">📘 Facebook</a>
+      <a href="#" style="margin: 0 1rem;">📷 Instagram</a>
+      <a href="#" style="margin: 0 1rem;">🐦 Twitter</a>
+      <a href="#" style="margin: 0 1rem;">💼 LinkedIn</a>
     </div>
   </section>
 </section>
@@ -211,30 +187,61 @@
   </div>
 </footer>
 
+<script src="js/api-bridge.js"></script>
 <script src="js/app.js"></script>
 <script>
+  // year
   document.getElementById('yearHome').innerText = new Date().getFullYear();
-  // load a few products for the homepage
-  (async function() {
+
+  // load products
+  (async function () {
     const container = document.getElementById('homeProducts');
     const msg = document.getElementById('homeMsg');
     container.innerHTML = '<div class="loading">Carregando...</div>';
     try {
-      const res = await fetch('/api/products?page=1&limit=4');
-      const json = await res.json();
-      const products = json.products || json.data || [];
+      const res = await fetchJSON('/api/products?page=1&limit=4');
+      const products = res.products || res.data || [];
       container.innerHTML = '';
-      if (!products || products.length === 0) {
+      if (!products.length) {
         msg.textContent = 'Nenhum produto disponível no momento.';
         return;
       }
       products.forEach(p => container.appendChild(renderProductCard(p)));
-
     } catch (e) {
       container.innerHTML = '';
       msg.textContent = 'Erro carregando produtos (funcional offline).';
     }
   })();
+
+  // contact form handler
+  document.getElementById('contactForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const msg = document.getElementById('contactMsg');
+    msg.textContent = '';
+
+    const data = Object.fromEntries(new FormData(form));
+    try {
+      await fetchJSON('/api/messages', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          phone: data.phone || null,
+          subject: data.subject,
+          message: data.message
+        })
+      });
+
+      showToast('Mensagem enviada com sucesso!', 'success');
+      msg.textContent = 'Obrigado pelo contacto. Responderemos em breve.';
+      form.reset();
+    } catch (err) {
+      console.error('Erro ao enviar mensagem:', err);
+      showToast('Erro ao enviar mensagem', 'error');
+      msg.textContent = 'Ocorreu um erro. Tente novamente mais tarde.';
+    }
+  });
 </script>
 </body>
 </html>
