@@ -66,7 +66,7 @@
 </div>
 
 <script>
-  const user = JSON.parse(localStorage.getItem('agri_user'));
+  const user = JSON.parse(localStorage.getItem('pdc_user_data'));
   const userInfo = document.getElementById('userInfo');
   const roleSpecific = document.getElementById('roleSpecific');
 
@@ -74,8 +74,9 @@
     userInfo.innerHTML = 'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
   } else {
     userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+    const role = (user.role || '').toUpperCase();
 
-    if (user.role === 'PRODUCER') {
+    if (role === 'PRODUCER') {
       roleSpecific.innerHTML = `
         <div class="card">
           <h2>Ferramentas do Produtor</h2>
@@ -86,9 +87,7 @@
             <li><a href="dashboard-production.html">Serviços de Produção</a></li>
           </ul>
         </div>`;
-    }
-
-    if (user.role === 'TRANSPORTER') {
+    } else if (role === 'TRANSPORTER') {
       roleSpecific.innerHTML = `
         <div class="card">
           <h2>Ferramentas do Transportador</h2>
@@ -97,9 +96,7 @@
             <li><a href="dashboard-transport.html">Meus Transportes</a></li>
           </ul>
         </div>`;
-    }
-
-    if (user.role === 'STORAGE_OWNER') {
+    } else if (role === 'STORAGE_OWNER') {
       roleSpecific.innerHTML = `
         <div class="card">
           <h2>Gestão de Armazéns</h2>
@@ -108,9 +105,7 @@
             <li><a href="dashboard-storage.html">Listagens de Armazéns</a></li>
           </ul>
         </div>`;
-    }
-
-    if (user.role === 'CONSUMER') {
+    } else if (role === 'CONSUMER') {
       roleSpecific.innerHTML = `
         <div class="card">
           <h2>Área do Consumidor</h2>
@@ -120,9 +115,7 @@
             <li><a href="dashboard-reviews.html">Minhas Avaliações</a></li>
           </ul>
         </div>`;
-    }
-
-    if (user.role === 'ADMIN') {
+    } else if (role === 'ADMIN') {
       roleSpecific.innerHTML = `
         <div class="card">
           <h2>Administração</h2>
@@ -134,12 +127,19 @@
             <li><a href="dashboard-wallet.html">Pagamentos e Transações</a></li>
           </ul>
         </div>`;
+    } else {
+      roleSpecific.innerHTML = `
+        <div class="card">
+          <h2>Informação</h2>
+          <p>Sem permissões específicas atribuídas.</p>
+        </div>`;
     }
   }
 
   document.getElementById('logoutBtn').addEventListener('click', (e) => {
     e.preventDefault();
-    localStorage.removeItem('agri_user');
+    localStorage.removeItem('pdc_user_data');
+    localStorage.removeItem('pdc_auth_token');
     location.href = 'auth.html';
   });
 </script>
