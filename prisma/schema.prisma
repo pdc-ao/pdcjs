@@ -1,17 +1,16 @@
 // =====================================================
 // COMPLETE PRISMA SCHEMA FOR AGRI-LOGISTICS PLATFORM
-// =====================================================
-// Includes: Core platform + Production Planning + Notifications + All discussed features
+// Revised to fix relation mismatches and add enums
 // Run: npx prisma format
-// Then: npx prisma migrate dev --name complete_schema
-
+// Then: npx prisma migrate dev --name revise_schema
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("PRISMA_DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // =====================================================
@@ -115,6 +114,15 @@ enum PreOrderStatus {
   CANCELLED
 }
 
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
 // =====================================================
 // CORE USER MODEL
 // =====================================================
@@ -126,9 +134,9 @@ model User {
   passwordHash String
 
   // ========================================
-  // ENTITY TYPE (NEW - IMPORTANT!)
+  // ENTITY TYPE
   // ========================================
-  entityType EntityType @default(INDIVIDUAL) // Individual or Company
+  entityType EntityType @default(INDIVIDUAL)
 
   // Personal information (for INDIVIDUAL)
   fullName    String?
@@ -136,9 +144,9 @@ model User {
 
   // Company information (for COMPANY)
   companyName        String?   @unique
-  registrationNumber String? // Business registration number
-  taxId              String? // TIN or VAT number
-  companyType        String? // LLC, Corporation, Sole Proprietorship, etc.
+  registrationNumber String?
+  taxId              String?
+  companyType        String?
   incorporationDate  DateTime?
 
   // Common fields
@@ -154,14 +162,14 @@ model User {
   profilePictureUrl String?
 
   // Role & Verification
-  role                UserRole
+  role                UserRole           @default(CONSUMER)
   isVerified          Boolean            @default(false)
   verificationStatus  VerificationStatus @default(PENDING)
   verificationDetails String?
   averageRating       Float?
 
-  // Notification preferences
-  notificationPreferences Json? @default("{\"email\":true,\"sms\":false}")
+  // Notification preferences (use Json, default set by application)
+  notificationPreferences Json?
 
   // Metadata
   createdAt DateTime @default(now())
@@ -227,7 +235,7 @@ model User {
   @@index([email])
   @@index([role])
   @@index([isVerified])
-  @@index([entityType]) // NEW INDEX
+  @@index([entityType])
 }
 
 // =====================================================
@@ -288,8 +296,7 @@ model ProductListing {
   updatedAt               DateTime  @updatedAt
 
   // Relations
-
-  producer   User        @relation("ProducerListings", fields: [producerId], references: [id])
+  producer   User        @relation("ProducerListings", fields: [producerId], references: [id], onDelete: Cascade)
   orderItems OrderItem[] @relation("ProductOrderItems")
   reviews    Review[]    @relation("ProductReviews")
 
@@ -321,8 +328,7 @@ model StorageListing {
   updatedAt          DateTime @updatedAt
 
   // Relations
-
-  owner   User     @relation("StorageListings", fields: [ownerId], references: [id])
+  owner   User     @relation("StorageListings", fields: [ownerId], references: [id], onDelete: Cascade)
   orders  Order[]  @relation("StorageOrders")
   reviews Review[] @relation("StorageReviews")
 
@@ -352,8 +358,7 @@ model TransportListing {
   updatedAt              DateTime @updatedAt
 
   // Relations
-
-  transporter User     @relation("TransportListings", fields: [transporterId], references: [id])
+  transporter User     @relation("TransportListings", fields: [transporterId], references: [id], onDelete: Cascade)
   orders      Order[]  @relation("TransportOrders")
   reviews     Review[] @relation("TransportReviews")
 
@@ -366,37 +371,37 @@ model TransportListing {
 // =====================================================
 
 model Order {
-  id                    String    @id @default(uuid())
-  orderNumber           String?   @unique
+  id                    String        @id @default(uuid())
+  orderNumber           String?       @unique
   buyerId               String
   sellerId              String
-  transporterId         String?
+  transporterId         String? // references User.id (transporter assigned)
+  transportListingId    String? // references TransportListing.id when a listing is used
   storageId             String?
-  orderDate             DateTime  @default(now())
+  orderDate             DateTime      @default(now())
   totalAmount           Float
-  currency              String    @default("AOA")
-  orderStatus           String
-  paymentStatus         String
+  currency              String        @default("AOA")
+  orderStatus           OrderStatus   @default(PENDING)
+  paymentStatus         PaymentStatus @default(PENDING)
   paymentMethod         String?
   transactionId         String?
   shippingAddressLine1  String
   shippingCity          String
   shippingPostalCode    String
-  shippingCountry       String    @default("Angola")
+  shippingCountry       String        @default("Angola")
   notesForSeller        String?
   notesForTransporter   String?
   estimatedDeliveryDate DateTime?
   actualDeliveryDate    DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @default(now()) @updatedAt
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   // Relations
-
-  buyer            User                 @relation("BuyerOrders", fields: [buyerId], references: [id])
-  seller           User                 @relation("SellerOrders", fields: [sellerId], references: [id])
-  transporter      User?                @relation("TransporterOrders", fields: [transporterId], references: [id], map: "fk_order_transporter_user")
-  transportListing TransportListing?    @relation("TransportOrders", fields: [transporterId], references: [id], map: "fk_order_transporter_listing")
-  storage          StorageListing?      @relation("StorageOrders", fields: [storageId], references: [id])
+  buyer            User                 @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller           User                 @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Cascade)
+  transporter      User?                @relation("TransporterOrders", fields: [transporterId], references: [id], onDelete: SetNull)
+  transportListing TransportListing?    @relation("TransportOrders", fields: [transportListingId], references: [id], onDelete: SetNull)
+  storage          StorageListing?      @relation("StorageOrders", fields: [storageId], references: [id], onDelete: SetNull)
   orderItems       OrderItem[]          @relation("OrderItems")
   statusHistory    OrderStatusHistory[]
   preOrder         PreOrder?
@@ -416,7 +421,6 @@ model OrderItem {
   createdAt           DateTime @default(now())
 
   // Relations
-
   order          Order          @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
   productListing ProductListing @relation("ProductOrderItems", fields: [productListingId], references: [id])
 
@@ -435,7 +439,7 @@ model OrderStatusHistory {
   status    String
   notes     String?  @db.Text
   changedBy String
-  user      User     @relation(fields: [changedBy], references: [id])
+  user      User     @relation(fields: [changedBy], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 
   @@index([orderId])
@@ -448,26 +452,29 @@ model OrderStatusHistory {
 // =====================================================
 
 model Review {
-  id                 String   @id @default(uuid())
-  reviewerId         String
-  reviewedEntityId   String
-  reviewedEntityType String
-  rating             Int
-  comment            String?
-  reviewDate         DateTime @default(now())
-  isApprovedByAdmin  Boolean  @default(true)
-  createdAt          DateTime @default(now())
+  id                  String   @id @default(uuid())
+  reviewerId          String
+  // Polymorphic target implemented via dedicated nullable FKs
+  reviewedUserId      String? // if review is for a user
+  reviewedProductId   String? // if review is for a product listing
+  reviewedStorageId   String? // if review is for storage
+  reviewedTransportId String? // if review is for transport listing
+  reviewedEntityType  String // informational: USER | PRODUCT | STORAGE | TRANSPORT
+  rating              Int
+  comment             String?
+  reviewDate          DateTime @default(now())
+  isApprovedByAdmin   Boolean  @default(true)
+  createdAt           DateTime @default(now())
 
   // Relations
-
-  reviewer          User              @relation("ReviewerReviews", fields: [reviewerId], references: [id])
-  reviewedUser      User?             @relation("ReviewedUserReviews", fields: [reviewedEntityId], references: [id], map: "fk_review_user")
-  reviewedProduct   ProductListing?   @relation("ProductReviews", fields: [reviewedEntityId], references: [id], map: "fk_review_product")
-  reviewedStorage   StorageListing?   @relation("StorageReviews", fields: [reviewedEntityId], references: [id], map: "fk_review_storage")
-  reviewedTransport TransportListing? @relation("TransportReviews", fields: [reviewedEntityId], references: [id], map: "fk_review_transport")
+  reviewer          User              @relation("ReviewerReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewedUser      User?             @relation("ReviewedUserReviews", fields: [reviewedUserId], references: [id], onDelete: SetNull)
+  reviewedProduct   ProductListing?   @relation("ProductReviews", fields: [reviewedProductId], references: [id], onDelete: SetNull)
+  reviewedStorage   StorageListing?   @relation("StorageReviews", fields: [reviewedStorageId], references: [id], onDelete: SetNull)
+  reviewedTransport TransportListing? @relation("TransportReviews", fields: [reviewedTransportId], references: [id], onDelete: SetNull)
 
   @@index([reviewerId])
-  @@index([reviewedEntityId, reviewedEntityType])
+  @@index([reviewedEntityType, reviewedUserId, reviewedProductId, reviewedStorageId, reviewedTransportId])
 }
 
 model UserRating {
@@ -499,9 +506,8 @@ model Message {
   readAt         DateTime?
 
   // Relations
-
-  sender   User @relation("SenderMessages", fields: [senderId], references: [id])
-  receiver User @relation("ReceiverMessages", fields: [receiverId], references: [id])
+  sender   User @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceiverMessages", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
   @@index([senderId, receiverId])
@@ -558,26 +564,26 @@ model Notification {
 // =====================================================
 
 model PaymentTransaction {
-  id                String    @id @default(uuid())
+  id                String        @id @default(uuid())
   buyerId           String
   sellerId          String
-  amount            Decimal   @db.Decimal(18, 2)
-  currency          String    @default("AOA")
-  status            String    @default("PENDING")
+  amount            Decimal       @db.Decimal(18, 2)
+  currency          String        @default("AOA")
+  status            PaymentStatus @default(PENDING)
   type              String? // PAYMENT, REFUND, WITHDRAWAL, DEPOSIT
-  buyerConfirmed    Boolean   @default(false)
-  sellerConfirmed   Boolean   @default(false)
+  buyerConfirmed    Boolean       @default(false)
+  sellerConfirmed   Boolean       @default(false)
   escrowHeldAt      DateTime?
   releasedAt        DateTime?
   providerPaymentId String?
   providerChargeId  String?
-  idempotencyKey    String?   @unique
-  metadata          String?   @db.Text
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  idempotencyKey    String?       @unique
+  metadata          String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
-  buyer         User                @relation("Buyer", fields: [buyerId], references: [id])
-  seller        User                @relation("Seller", fields: [sellerId], references: [id])
+  buyer         User                @relation("Buyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller        User                @relation("Seller", fields: [sellerId], references: [id], onDelete: Cascade)
   escrow        EscrowTransaction?  @relation("PaymentEscrow")
   ledgerEntries TransactionLedger[]
 
@@ -660,7 +666,7 @@ model TransformationFacility {
   processingRate Float             @default(0)
   isActive       Boolean           @default(true)
   ownerId        String
-  owner          User              @relation("OwnerFacilities", fields: [ownerId], references: [id])
+  owner          User              @relation("OwnerFacilities", fields: [ownerId], references: [id], onDelete: Cascade)
   bookings       FacilityBooking[]
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -674,7 +680,7 @@ model FacilityBooking {
   facilityId      String
   facility        TransformationFacility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   userId          String
-  user            User                   @relation(fields: [userId], references: [id])
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceType     String
   startDate       DateTime
   endDate         DateTime
@@ -722,8 +728,8 @@ model ProductionPlan {
   allowPreOrders       Boolean          @default(false)
   description          String?          @db.Text
   farmingMethod        String?
-  certifications       String[]
-  images               String[]
+  certifications       String[] // Postgres native array — or use Json if preferred
+  images               String[] // Postgres native array — or use Json if preferred
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
@@ -771,7 +777,7 @@ model ProductionUpdate {
   quantityAdjustment Float?
   dateAdjustment     DateTime?
   createdBy          String
-  user               User           @relation(fields: [createdBy], references: [id])
+  user               User           @relation(fields: [createdBy], references: [id], onDelete: Cascade)
   createdAt          DateTime       @default(now())
 
   @@index([productionPlanId])
@@ -801,7 +807,7 @@ model PreOrder {
   productionPlanId   String
   productionPlan     ProductionPlan @relation(fields: [productionPlanId], references: [id], onDelete: Cascade)
   customerId         String
-  customer           User           @relation(fields: [customerId], references: [id])
+  customer           User           @relation(fields: [customerId], references: [id], onDelete: Cascade)
   quantity           Float
   pricePerUnit       Float?
   totalPrice         Float?
@@ -810,7 +816,7 @@ model PreOrder {
   depositPaid        Boolean        @default(false)
   notes              String?        @db.Text
   createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  updatedAt          DateTime       @default(now()) @updatedAt
   convertedToOrderId String?        @unique
   convertedToOrder   Order?         @relation(fields: [convertedToOrderId], references: [id])
 
@@ -828,7 +834,7 @@ model Offering {
   title       String
   description String?
   ownerId     String
-  owner       User               @relation(fields: [ownerId], references: [id])
+  owner       User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   schedules   OfferingSchedule[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
@@ -843,7 +849,7 @@ model OfferingSchedule {
   startTime  DateTime
   endTime    DateTime
   bookedById String?
-  bookedBy   User?         @relation(fields: [bookedById], references: [id])
+  bookedBy   User?         @relation(fields: [bookedById], references: [id], onDelete: SetNull)
   status     BookingStatus @default(PENDING)
   notes      String?       @db.Text
   createdAt  DateTime      @default(now())
