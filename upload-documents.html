@@ -43,40 +43,32 @@
 </div>
 
 <div class="main">
-  <h1>Enviar Documento para Verificação</h1>
-  <p id="userInfo">Carregando sessão...</p>
+    <h1>Enviar Documento para Verificação</h1>
+    <p id="userInfo">Carregando sessão...</p>
 
-  <div class="card">
-    <form id="uploadForm" enctype="multipart/form-data">
-      <label>Tipo de Documento:<br/>
-        <select name="docType" required>
-          <option value="ID_CARD">Bilhete de Identidade</option>
-          <option value="LICENSE">Licença</option>
-          <option value="OTHER">Outro</option>
-        </select>
-      </label><br/><br/>
-      <label>Arquivo (PDF, JPG, PNG):<br/>
-        <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required />
-      </label><br/><br/>
-      <button type="submit" class="btn btn-primary">Enviar</button>
-    </form>
-    <div id="uploadMsg" class="muted"></div>
+    <div class="card">
+      <form id="uploadForm" enctype="multipart/form-data">
+        <label>Tipo de Documento:<br/>
+          <select name="docType" required>
+            <option value="ID_CARD">Bilhete de Identidade</option>
+            <option value="LICENSE">Licença</option>
+            <option value="OTHER">Outro</option>
+          </select>
+        </label><br/><br/>
+        <label>Arquivo (PDF, JPG, PNG):<br/>
+          <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required />
+        </label><br/><br/>
+        <button type="submit" class="btn btn-primary">Enviar</button>
+      </form>
+      <div id="uploadMsg" class="muted"></div>
+    </div>
   </div>
-</div>
 
-<footer class="site-footer">
-  <div class="container">© <span id="yearUD"></span> AgriConnect Angola</div>
-</footer>
-
+<script src="js/api-bridge.js"></script>
 <script src="js/app.js"></script>
 <script type="module">
-  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
-
-  document.getElementById('yearUD').innerText = new Date().getFullYear();
-
-  const user = getSession();
-  renderUserInfo('#userInfo');
-  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
+  import { getSession, renderUserInfo } from './js/dashboard.js';
+  document.getElementById('userInfo').textContent = (getSession() && (getSession().name || getSession().email)) || 'Faça login para enviar documentos.';
 
   const form = document.getElementById('uploadForm');
   const msg = document.getElementById('uploadMsg');

@@ -42,38 +42,30 @@
   <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
-<div class="main">
-  <h1>Criar novo produto</h1>
-  <p id="userInfo">Carregando sessão...</p>
-  <div id="msg" class="muted"></div>
+  <div class="main">
+    <h1>Criar novo produto</h1>
+    <p id="userInfo">Carregando sessão...</p>
+    <div id="msg" class="muted"></div>
 
-  <form id="productForm" class="card auth-page" style="max-width:700px">
-    <label>Título<input name="title" required /></label>
-    <label>Descrição<textarea name="description" rows="4"></textarea></label>
-    <label>Categoria<input name="category" required /></label>
-    <label>Quantidade disponível<input name="quantityAvailable" type="number" step="any" required /></label>
-    <label>Unidade (kg, sacos, etc.)<input name="unitOfMeasure" required /></label>
-    <label>Preço por unidade<input name="pricePerUnit" type="number" step="any" required /></label>
-    <label>Moeda<input name="currency" value="AOA" /></label>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">Criar</button>
-    </div>
-  </form>
-</div>
+    <form id="productForm" class="card auth-page" style="max-width:700px">
+      <label>Título<input name="title" required /></label>
+      <label>Descrição<textarea name="description" rows="4"></textarea></label>
+      <label>Categoria<input name="category" required /></label>
+      <label>Quantidade disponível<input name="quantityAvailable" type="number" step="any" required /></label>
+      <label>Unidade (kg, sacos, etc.)<input name="unitOfMeasure" required /></label>
+      <label>Preço por unidade<input name="pricePerUnit" type="number" step="any" required /></label>
+      <label>Moeda<input name="currency" value="AOA" /></label>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">Criar</button></div>
+    </form>
+  </div>
 
-<footer class="site-footer">
-  <div class="container">© <span id="yearPN"></span> AgriConnect Angola</div>
-</footer>
-
+<script src="js/api-bridge.js"></script>
 <script src="js/app.js"></script>
 <script type="module">
-  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
-
-  document.getElementById('yearPN').innerText = new Date().getFullYear();
+  import { getSession, renderUserInfo, fetchJSON } from './js/dashboard.js';
 
   const user = getSession();
   renderUserInfo('#userInfo');
-  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
 
   const productForm = document.getElementById('productForm');
   const msg = document.getElementById('msg');
@@ -81,7 +73,15 @@
   productForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(productForm);
-    const payload = Object.fromEntries(fd);
+    const payload = {
+      title: fd.get('title'),
+      description: fd.get('description'),
+      category: fd.get('category'),
+      quantityAvailable: Number(fd.get('quantityAvailable')),
+      unitOfMeasure: fd.get('unitOfMeasure'),
+      pricePerUnit: Number(fd.get('pricePerUnit')),
+      currency: fd.get('currency') || 'AOA'
+    };
 
     const btn = productForm.querySelector('button[type="submit"]');
     btn.disabled = true;
@@ -90,17 +90,14 @@
     msg.textContent = '';
 
     try {
-      const res = await fetch('/api/products', {
+      const res = await fetchJSON('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ ...payload, producerId: user?.id || user?.email })
+        body: JSON.stringify(payload)
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Falha ao criar produto');
       msg.textContent = '✅ Produto criado com sucesso!';
       setTimeout(()=>{ location.href = 'dashboard-products.html'; }, 800);
     } catch (err) {
-      msg.textContent = '❌ Erro: ' + err.message;
+      msg.textContent = '❌ Erro: ' + (err.message || err.body?.error || 'Falha');
     } finally {
       btn.disabled = false;
       btn.textContent = oldText;

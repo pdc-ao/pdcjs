@@ -82,19 +82,12 @@
   <div class="container">© <span id="yearFN"></span> AgriConnect Angola</div>
 </footer>
 
+<script src="js/api-bridge.js"></script>
 <script src="js/app.js"></script>
 <script type="module">
-  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
-
-  document.getElementById('yearFN').innerText = new Date().getFullYear();
-
+  import { getSession, renderUserInfo, fetchJSON } from './js/dashboard.js';
   const user = getSession();
   renderUserInfo('#userInfo');
-
-  document.getElementById('logoutBtn').addEventListener('click', e => {
-    e.preventDefault();
-    logout();
-  });
 
   const facForm = document.getElementById('facForm');
   const facMsg = document.getElementById('facMsg');
@@ -103,7 +96,6 @@
     e.preventDefault();
     const fd = new FormData(facForm);
 
-    // Simple validation
     for (const key of ['facilityName','addressLine1','city']) {
       if (!fd.get(key)) {
         facMsg.textContent = `O campo "${key}" é obrigatório.`;
@@ -112,13 +104,10 @@
     }
 
     const btn = facForm.querySelector('button[type="submit"]');
-    btn.disabled = true;
-    const oldText = btn.textContent;
-    btn.textContent = 'Aguarde…';
-    facMsg.textContent = '';
+    btn.disabled = true; const oldText = btn.textContent; btn.textContent = 'Aguarde…'; facMsg.textContent = '';
 
     const payload = {
-      ownerId: user?.id || user?.email || 'demo-owner',
+      ownerId: user?.id || user?.email,
       facilityName: fd.get('facilityName'),
       facilityType: fd.get('facilityType') || '',
       capacity: fd.get('capacity') ? Number(fd.get('capacity')) : null,
@@ -130,23 +119,13 @@
     };
 
     try {
-      const res = await fetch('/api/facilities', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(()=>({}));
-        throw new Error(j.error || 'Falha ao criar instalação');
-      }
+      await fetchJSON('/api/facilities', { method:'POST', body: JSON.stringify(payload) });
       facMsg.textContent = '✅ Instalação criada com sucesso!';
-      // Redirect after brief delay for UX
       setTimeout(()=>{ location.href = 'dashboard-facilities.html'; }, 800);
     } catch (err) {
-      facMsg.textContent = '❌ Erro: ' + err.message;
+      facMsg.textContent = '❌ Erro: ' + (err.message || err.body?.error || 'Falha');
     } finally {
-      btn.disabled = false;
-      btn.textContent = oldText;
+      btn.disabled = false; btn.textContent = oldText;
     }
   });
 </script>

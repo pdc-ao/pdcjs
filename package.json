@@ -1,35 +1,39 @@
 {
-  "name": " ",
+  "name": "pdcjs",
   "version": "0.0.1",
-  "description": "",
   "private": true,
-  "keywords": [
-    ""
-  ],
-  "license": "",
-  "author": "",
+  "description": "AgriConnect Angola - frontend + serverless API",
+  "author": "pdc-ao",
+  "license": "MIT",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack serve --open --config webpack.config.dev.js",
-    "build": "webpack --config webpack.config.prod.js"
-  },
-  "devDependencies": {
-    "copy-webpack-plugin": "^11.0.0",
-    "html-webpack-plugin": "^5.6.0",
-    "vite": "^7.1.12",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.0.4",
-    "webpack-merge": "^5.10.0"
+    "dev": "vercel dev",
+    "dev:legacy": "vite", 
+    "build": "echo \"No top-level build step (Vercel handles functions/static).\"",
+    "start": "vercel dev",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "seed": "node prisma/seed.js || echo \"No seed script found\"",
+    "lint": "echo \"No lint configured\""
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
     "@prisma/extension-accelerate": "^2.0.2",
-    "prisma": "^6.18.0"
+    "bcryptjs": "^2.4.3",
+    "uuid": "^9.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "@aws-sdk/client-s3": "^3.380.0"
   },
-
-  "scripts": {
-    "dev": "vite"
+  "devDependencies": {
+    "prisma": "^6.18.0",
+    "vercel": "^28.0.0",
+    "vite": "^7.1.12",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.0.4",
+    "html-webpack-plugin": "^5.6.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "webpack-merge": "^5.10.0"
   }
-
 }

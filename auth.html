@@ -5,52 +5,38 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Entrar / Registrar — AgriConnect Angola</title>
   <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .hidden { display: none !important; }
-  </style>
+  <style>.hidden { display: none !important; }</style>
 </head>
 <body>
 <header class="site-header">
   <div class="container header-inner">
-    <a class="brand" href="index.html">
-      <span class="logo">A</span>
-      <span class="brand-name">AgriConnect Angola</span>
-    </a>
-    <nav class="main-nav">
-      <a href="index.html">Início</a>
-    </nav>
+    <a class="brand" href="index.html"><span class="logo">A</span><span class="brand-name">AgriConnect Angola</span></a>
+    <nav class="main-nav"><a href="index.html">Início</a></nav>
   </div>
 </header>
 
 <main class="container auth-page">
   <h1>Entrar / Registrar</h1>
-
   <div class="auth-tabs">
     <button class="tab-btn active" data-target="login">Entrar</button>
     <button class="tab-btn" data-target="register">Registrar</button>
   </div>
 
-  <!-- Login Panel -->
   <div id="login" class="auth-panel">
     <form id="loginForm">
       <label>Email<input name="email" type="email" required /></label>
       <label>Senha<input name="password" type="password" required /></label>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Entrar</button>
-      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">Entrar</button></div>
       <div id="loginError" class="form-error" aria-live="polite"></div>
-      <p class="muted"></p>
     </form>
   </div>
 
-  <!-- Register Panel -->
   <div id="register" class="auth-panel hidden">
     <form id="registerForm">
       <div class="toggle-type">
         <label><input type="radio" name="regType" value="person" checked /> Pessoa</label>
         <label><input type="radio" name="regType" value="company" /> Empresa</label>
       </div>
-
       <div id="personFields">
         <label>Nome completo<input name="fullName" /></label>
         <label>Email<input name="email" type="email" /></label>
@@ -64,7 +50,6 @@
           </select>
         </label>
       </div>
-
       <div id="companyFields" style="display:none;">
         <label>Nome da empresa<input name="companyName" /></label>
         <label>Responsável<input name="contactPerson" /></label>
@@ -80,26 +65,20 @@
           </select>
         </label>
       </div>
-
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Registrar</button>
-      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">Registrar</button></div>
       <div id="registerError" class="form-error" aria-live="polite"></div>
     </form>
   </div>
 </main>
 
-<footer class="site-footer">
-  <div class="container">
-    <p>© <span id="yearAuth"></span> AgriConnect Angola</p>
-  </div>
-</footer>
+<footer class="site-footer"><div class="container"><p>© <span id="yearAuth"></span> AgriConnect Angola</p></div></footer>
 
+<script src="js/api-bridge.js"></script>
 <script src="js/app.js"></script>
 <script>
   document.getElementById('yearAuth').innerText = new Date().getFullYear();
 
-  // Tabs switching
+  // tabs
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -109,102 +88,75 @@
     });
   });
 
-  // Toggle registration type + required attributes
-  const personFields = document.getElementById('personFields');
-  const companyFields = document.getElementById('companyFields');
-
   function setRequired(container, isRequired) {
     container.querySelectorAll('input, select').forEach(el => {
-      if (isRequired) {
-        el.setAttribute('required', 'required');
-      } else {
-        el.removeAttribute('required');
-      }
+      if (isRequired) el.setAttribute('required', 'required'); else el.removeAttribute('required');
     });
   }
-
   function toggleRegType(type) {
+    const personFields = document.getElementById('personFields');
+    const companyFields = document.getElementById('companyFields');
     if (type === 'person') {
-      personFields.style.display = 'block';
-      companyFields.style.display = 'none';
-      setRequired(personFields, true);
-      setRequired(companyFields, false);
+      personFields.style.display = 'block'; companyFields.style.display = 'none';
+      setRequired(personFields, true); setRequired(companyFields, false);
     } else {
-      personFields.style.display = 'none';
-      companyFields.style.display = 'block';
-      setRequired(personFields, false);
-      setRequired(companyFields, true);
+      personFields.style.display = 'none'; companyFields.style.display = 'block';
+      setRequired(personFields, false); setRequired(companyFields, true);
     }
   }
-
-  document.querySelectorAll('input[name="regType"]').forEach(radio => {
-    radio.addEventListener('change', () => toggleRegType(radio.value));
-  });
-
-  // Initialize defaults
+  document.querySelectorAll('input[name="regType"]').forEach(r => r.addEventListener('change', ()=>toggleRegType(r.value)));
   toggleRegType('person');
 
-  // Login (demo)
+  // login
   const loginForm = document.getElementById('loginForm');
-  loginForm.addEventListener('submit', (e) => {
+  loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const email = fd.get('email'), password = fd.get('password');
-    if (!email || !password) {
-      document.getElementById('loginError').textContent = 'Preencha todos os campos';
-      return;
-    }
-    localStorage.setItem('pdc_user_data
-', JSON.stringify({ email, role: 'CONSUMER', name: email }));
-    const redirect = new URLSearchParams(window.location.search).get('redirect') || 'dashboard.html';
-    location.href = redirect;
+    if (!email || !password) { document.getElementById('loginError').textContent = 'Preencha todos os campos'; return; }
+    const btn = loginForm.querySelector('button[type="submit"]'); const old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Entrando…'; document.getElementById('loginError').textContent = '';
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (!res.ok) { const j = await res.json().catch(()=>({})); throw new Error(j.error || 'Falha no login'); }
+      const json = await res.json();
+      localStorage.setItem('pdc_auth_token', json.token);
+      localStorage.setItem('pdc_user_data', JSON.stringify(json.user));
+      const redirect = new URLSearchParams(window.location.search).get('redirect') || 'dashboard.html';
+      location.href = redirect;
+    } catch (err) {
+      document.getElementById('loginError').textContent = err.message || 'Erro';
+    } finally { btn.disabled = false; btn.textContent = old; }
   });
 
-  // Register (demo)
+  // register
   const registerForm = document.getElementById('registerForm');
-  registerForm.addEventListener('submit', (e) => {
+  registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(registerForm);
-    const type = fd.get('regType');
+    const fd = new FormData(registerForm); const type = fd.get('regType');
     const pw = fd.get('password'), cpw = fd.get('confirmPassword');
-
-    if (pw !== cpw) {
-      document.getElementById('registerError').textContent = 'Senhas não coincidem';
-      return;
-    }
-
-    let userData = {};
-    if (type === 'person') {
-      userData = {
-        type: 'person',
-        fullName: fd.get('fullName'),
-        email: fd.get('email'),
-        password: pw,
-        role: fd.get('role')
-      };
-    } else {
-      userData = {
-        type: 'company',
-        companyName: fd.get('companyName'),
-        contactPerson: fd.get('contactPerson'),
-        email: fd.get('email'),
-        password: pw,
-        role: fd.get('role')
-      };
-    }
-
-    const storeKey = 'agri_users_demo';
-    const users = JSON.parse(localStorage.getItem(storeKey) || '[]');
-    users.push({ id: Date.now().toString(), ...userData });
-    localStorage.setItem(storeKey, JSON.stringify(users));
-
-    const msg = document.getElementById('registerError');
-    msg.style.color = 'green';
-    msg.textContent = 'Registrado com sucesso (demo). Agora faça login.';
-
-    document.querySelector('.tab-btn[data-target="login"]').click();
+    if (pw !== cpw) { document.getElementById('registerError').textContent = 'Senhas não coincidem'; return; }
+    const payload = type === 'person'
+      ? { email: fd.get('email'), password: pw, name: fd.get('fullName'), role: fd.get('role') }
+      : { email: fd.get('email'), password: pw, name: fd.get('companyName'), role: fd.get('role') };
+    const btn = registerForm.querySelector('button[type="submit"]'); const old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Registrando…'; document.getElementById('registerError').textContent = '';
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      if (!res.ok) { const j = await res.json().catch(()=>({})); throw new Error(j.error || 'Falha no registo'); }
+      const json = await res.json();
+      localStorage.setItem('pdc_auth_token', json.token);
+      localStorage.setItem('pdc_user_data', JSON.stringify(json.user));
+      location.href = 'dashboard.html';
+    } catch (err) {
+      document.getElementById('registerError').textContent = err.message || 'Erro';
+    } finally { btn.disabled = false; btn.textContent = old; }
   });
 </script>
-
 </body>
 </html>
