@@ -8,8 +8,7 @@
   "scripts": {
     "dev": "vercel dev",
     "dev:legacy": "vite", 
-    "build": "echo \"No top-level build step (Vercel handles functions/static).\"",
-    "start": "vercel dev",
+    "build": "echo \"Skipping build, static + api only\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

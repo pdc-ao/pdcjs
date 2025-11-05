@@ -17,19 +17,30 @@ module.exports = async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
 
+    // Auto-generate username from email prefix
+    const username = email.split('@')[0];
+
     const user = await prisma.user.create({
       data: {
         email,
         passwordHash: hashed,
         fullName: name || undefined,
-        role: role || undefined
+        role: role || undefined,
+        username
       },
-      select: { id: true, email: true, fullName: true, role: true }
+      select: { id: true, email: true, fullName: true, role: true, username: true }
     });
 
     const token = signToken({ userId: user.id, role: user.role });
 
-    const safeUser = { id: user.id, email: user.email, name: user.fullName || null, role: user.role };
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      name: user.fullName || null,
+      role: user.role,
+      username: user.username
+    };
+
     return res.status(201).json({ user: safeUser, token });
   } catch (err) {
     console.error('[AUTH REGISTER]', err);
