@@ -3,20 +3,35 @@ const { verifyToken } = require('../../lib/jwt');
 
 require('dotenv').config();
 
-// GET /api/products -> list
+// GET /api/products -> list (public preview or authenticated search)
 // POST /api/products -> create (requires Authorization: Bearer <token>)
 module.exports = async (req, res) => {
   try {
     if (req.method === 'GET') {
       const { page = 1, limit = 20, q } = req.query;
-      const where = q
-        ? {
-            OR: [
-              { title: { contains: q, mode: 'insensitive' } },
-              { description: { contains: q, mode: 'insensitive' } },
-            ],
-          }
-        : {};
+
+      // Try to read token (optional for GET)
+      const auth = req.headers.authorization || '';
+      const token = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null;
+      let payload = null;
+      if (token) {
+        try {
+          payload = verifyToken(token);
+        } catch {
+          // ignore invalid token for GET
+        }
+      }
+
+      // Only allow search if authenticated
+      const where =
+        payload && q
+          ? {
+              OR: [
+                { title: { contains: q, mode: 'insensitive' } },
+                { description: { contains: q, mode: 'insensitive' } },
+              ],
+            }
+          : {};
 
       const products = await prisma.productListing.findMany({
         where,
@@ -29,6 +44,7 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
+      // Require token for publishing
       const auth = req.headers.authorization || '';
       const token = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null;
       if (!token) return res.status(401).json({ error: 'Missing token' });
@@ -36,7 +52,7 @@ module.exports = async (req, res) => {
       let payload;
       try {
         payload = verifyToken(token);
-      } catch (e) {
+      } catch {
         return res.status(401).json({ error: 'Invalid token' });
       }
 
@@ -64,7 +80,7 @@ module.exports = async (req, res) => {
           pricePerUnit: Number(price),
           quantityAvailable: Number(quantity),
           unitOfMeasure: unit,
-          producerId: payload.userId, // assumes your JWT payload includes userId
+          producerId: payload.userId, // assumes JWT payload includes userId
         },
       });
 
