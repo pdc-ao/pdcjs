@@ -1,21 +1,16 @@
-// =====================================================
-// COMPLETE PRISMA SCHEMA FOR AGRI-LOGISTICS PLATFORM
-// Revised to fix relation mismatches and add enums
-// Run: npx prisma format
-// Then: npx prisma migrate dev --name revise_schema
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("PRISMA_DATABASE_URL")
+  provider = "postgresql"
+  url      = env("PRISMA_DATABASE_URL")
   // shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// =====================================================
-// ENUMS
-// =====================================================
+// =======================
+// CORE ENUMS
+// =======================
 
 enum UserRole {
   PRODUCER
@@ -63,6 +58,10 @@ enum BookingStatus {
   COMPLETED
   CANCELLED
 }
+
+// =======================
+// PRODUCTION ENUMS
+// =======================
 
 enum ProductionStatus {
   PLANNED
@@ -123,9 +122,59 @@ enum OrderStatus {
   REFUNDED
 }
 
-// =====================================================
-// CORE USER MODEL
-// =====================================================
+// =======================
+// NEW ENRICHMENT ENUMS
+// =======================
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+enum NotificationDeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum ShipmentStatus {
+  PENDING_PICKUP
+  IN_TRANSIT
+  DELAYED
+  DELIVERED
+  CANCELLED
+}
+
+enum TrackingEventType {
+  PICKED_UP
+  ARRIVED_AT_HUB
+  DEPARTED_HUB
+  OUT_FOR_DELIVERY
+  DELIVERED
+  EXCEPTION
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum RolePermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  MANAGE
+}
+
+enum SeverityLevel {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
 
 model User {
   id           String @id @default(uuid())
@@ -133,23 +182,17 @@ model User {
   email        String @unique
   passwordHash String
 
-  // ========================================
-  // ENTITY TYPE
-  // ========================================
   entityType EntityType @default(INDIVIDUAL)
 
-  // Personal information (for INDIVIDUAL)
   fullName    String?
   dateOfBirth DateTime?
 
-  // Company information (for COMPANY)
   companyName        String?   @unique
   registrationNumber String?
   taxId              String?
   companyType        String?
   incorporationDate  DateTime?
 
-  // Common fields
   phoneNumber       String?
   addressLine1      String?
   addressLine2      String?
@@ -161,21 +204,18 @@ model User {
   longitude         Float?
   profilePictureUrl String?
 
-  // Role & Verification
   role                UserRole           @default(CONSUMER)
   isVerified          Boolean            @default(false)
   verificationStatus  VerificationStatus @default(PENDING)
   verificationDetails String?
   averageRating       Float?
 
-  // Notification preferences (use Json, default set by application)
   notificationPreferences Json?
 
-  // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Role-specific details (one-to-one)
+  // Role-specific details
   producerDetails    ProducerDetails?    @relation("ProducerDetails")
   storageDetails     StorageDetails?     @relation("StorageDetails")
   transporterDetails TransporterDetails? @relation("TransporterDetails")
@@ -201,8 +241,9 @@ model User {
   ratingsReceived UserRating[] @relation("Reviewed")
 
   // Messaging
-  messagesSent     Message[] @relation("SenderMessages")
-  messagesReceived Message[] @relation("ReceiverMessages")
+  messagesSent     Message[]        @relation("SenderMessages")
+  messagesReceived Message[]        @relation("ReceiverMessages")
+  conversations    Conversation[]   @relation("ParticipantConversations")
 
   // Documents & Wallet
   documents         Document[]
@@ -222,6 +263,7 @@ model User {
 
   // Notifications
   notifications Notification[]
+  notificationDeliveries NotificationDelivery[]
 
   // Production Planning
   productionPlans         ProductionPlan[]       @relation("ProductionPlans")
@@ -232,15 +274,43 @@ model User {
   // Procurement
   componentsRequested Component[] @relation("RequestedComponents")
 
+  // Sessions
+  sessions Session[]
+
+  // Certifications
+  certifications Certification[]
+
   @@index([email])
   @@index([role])
   @@index([isVerified])
   @@index([entityType])
 }
 
-// =====================================================
-// ROLE DETAILS
-// =====================================================
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model RolePermission {
+  id        String                @id @default(cuid())
+  role      UserRole
+  resource  String                // e.g., "ProductListing", "Order", "PaymentTransaction"
+  action    RolePermissionAction  // CRUD / MANAGE
+  condition Json?                 // optional JSON-based constraints
+  createdAt DateTime              @default(now())
+
+  @@unique([role, resource, action])
+}
 
 model ProducerDetails {
   id              String  @id @default(uuid())
@@ -268,9 +338,22 @@ model TransporterDetails {
   user                       User    @relation("TransporterDetails", fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// =====================================================
-// LISTINGS
-// =====================================================
+model Category {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  slug     String   @unique
+  parentId String?
+  parent   Category? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+  createdAt DateTime @default(now())
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+}
 
 model ProductListing {
   id                      String    @id @default(uuid())
@@ -296,12 +379,39 @@ model ProductListing {
   updatedAt               DateTime  @updatedAt
 
   // Relations
-  producer   User        @relation("ProducerListings", fields: [producerId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[] @relation("ProductOrderItems")
-  reviews    Review[]    @relation("ProductReviews")
+  producer      User                @relation("ProducerListings", fields: [producerId], references: [id], onDelete: Cascade)
+  orderItems    OrderItem[]         @relation("ProductOrderItems")
+  reviews       Review[]            @relation("ProductReviews")
+  inventoryMoves InventoryMovement[]
+  productTags    ProductTag[]
 
   @@index([status, category])
   @@index([producerId])
+}
+
+model ProductTag {
+  productListingId String
+  tagId            String
+  productListing   ProductListing @relation(fields: [productListingId], references: [id], onDelete: Cascade)
+  tag              Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productListingId, tagId])
+}
+
+model InventoryMovement {
+  id             String         @id @default(cuid())
+  productListingId String
+  productListing ProductListing @relation(fields: [productListingId], references: [id], onDelete: Cascade)
+  type           String         // "ADD" | "RESERVE" | "FULFILL" | "ADJUST" | "CANCEL"
+  quantity       Float
+  unit           String
+  reason         String?
+  referenceId    String?        // optional link to order/preorder/etc
+  createdBy      String?
+  createdAt      DateTime       @default(now())
+
+  @@index([productListingId])
+  @@index([createdAt])
 }
 
 model StorageListing {
@@ -327,7 +437,6 @@ model StorageListing {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  // Relations
   owner   User     @relation("StorageListings", fields: [ownerId], references: [id], onDelete: Cascade)
   orders  Order[]  @relation("StorageOrders")
   reviews Review[] @relation("StorageReviews")
@@ -357,7 +466,6 @@ model TransportListing {
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
-  // Relations
   transporter User     @relation("TransportListings", fields: [transporterId], references: [id], onDelete: Cascade)
   orders      Order[]  @relation("TransportOrders")
   reviews     Review[] @relation("TransportReviews")
@@ -366,17 +474,13 @@ model TransportListing {
   @@index([availabilityStatus])
 }
 
-// =====================================================
-// ORDERS
-// =====================================================
-
 model Order {
   id                    String        @id @default(uuid())
   orderNumber           String?       @unique
   buyerId               String
   sellerId              String
-  transporterId         String? // references User.id (transporter assigned)
-  transportListingId    String? // references TransportListing.id when a listing is used
+  transporterId         String?
+  transportListingId    String?
   storageId             String?
   orderDate             DateTime      @default(now())
   totalAmount           Float
@@ -396,7 +500,6 @@ model Order {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  // Relations
   buyer            User                 @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: Cascade)
   seller           User                 @relation("SellerOrders", fields: [sellerId], references: [id], onDelete: Cascade)
   transporter      User?                @relation("TransporterOrders", fields: [transporterId], references: [id], onDelete: SetNull)
@@ -405,6 +508,7 @@ model Order {
   orderItems       OrderItem[]          @relation("OrderItems")
   statusHistory    OrderStatusHistory[]
   preOrder         PreOrder?
+  shipment         Shipment?
 
   @@index([buyerId, sellerId, orderStatus])
   @@index([orderNumber])
@@ -420,17 +524,12 @@ model OrderItem {
   subtotal            Float
   createdAt           DateTime @default(now())
 
-  // Relations
   order          Order          @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
   productListing ProductListing @relation("ProductOrderItems", fields: [productListingId], references: [id])
 
   @@index([orderId])
   @@index([productListingId])
 }
-
-// =====================================================
-// ORDER STATUS HISTORY
-// =====================================================
 
 model OrderStatusHistory {
   id        String   @id @default(cuid())
@@ -447,26 +546,55 @@ model OrderStatusHistory {
   @@index([createdAt])
 }
 
-// =====================================================
-// REVIEWS / RATINGS
-// =====================================================
+model Shipment {
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  transporterId String?
+  transporter   User?         @relation(fields: [transporterId], references: [id], onDelete: SetNull)
+  origin        String
+  destination   String
+  pickupDate    DateTime?
+  deliveryDate  DateTime?
+  status        ShipmentStatus @default(PENDING_PICKUP)
+  trackingCode  String?
+  notes         String?        @db.Text
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  events TrackingEvent[]
+
+  @@index([status])
+}
+
+model TrackingEvent {
+  id          String           @id @default(cuid())
+  shipmentId  String
+  shipment    Shipment         @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  eventType   TrackingEventType
+  description String?          @db.Text
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  occurredAt  DateTime         @default(now())
+
+  @@index([shipmentId, occurredAt])
+}
 
 model Review {
   id                  String   @id @default(uuid())
   reviewerId          String
-  // Polymorphic target implemented via dedicated nullable FKs
-  reviewedUserId      String? // if review is for a user
-  reviewedProductId   String? // if review is for a product listing
-  reviewedStorageId   String? // if review is for storage
-  reviewedTransportId String? // if review is for transport listing
-  reviewedEntityType  String // informational: USER | PRODUCT | STORAGE | TRANSPORT
+  reviewedUserId      String?
+  reviewedProductId   String?
+  reviewedStorageId   String?
+  reviewedTransportId String?
+  reviewedEntityType  String
   rating              Int
   comment             String?
   reviewDate          DateTime @default(now())
   isApprovedByAdmin   Boolean  @default(true)
   createdAt           DateTime @default(now())
 
-  // Relations
   reviewer          User              @relation("ReviewerReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
   reviewedUser      User?             @relation("ReviewedUserReviews", fields: [reviewedUserId], references: [id], onDelete: SetNull)
   reviewedProduct   ProductListing?   @relation("ProductReviews", fields: [reviewedProductId], references: [id], onDelete: SetNull)
@@ -492,9 +620,27 @@ model UserRating {
   @@index([reviewerId, reviewedId])
 }
 
-// =====================================================
-// MESSAGING
-// =====================================================
+model Conversation {
+  id           String  @id @default(cuid())
+  title        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Participants (User–Conversation join)
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation("ParticipantConversations", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+}
 
 model Message {
   id             String    @id @default(uuid())
@@ -505,17 +651,13 @@ model Message {
   sentAt         DateTime  @default(now())
   readAt         DateTime?
 
-  // Relations
-  sender   User @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver User @relation("ReceiverMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User        @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver     User        @relation("ReceiverMessages", fields: [receiverId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
   @@index([senderId, receiverId])
 }
-
-// =====================================================
-// DOCUMENTS
-// =====================================================
 
 model Document {
   id              String         @id @default(cuid())
@@ -535,14 +677,28 @@ model Document {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  verificationRequests VerificationRequest[]
+
   @@index([userId])
   @@index([type])
   @@index([status])
 }
 
-// =====================================================
-// NOTIFICATIONS
-// =====================================================
+model VerificationRequest {
+  id          String           @id @default(cuid())
+  documentId  String
+  document    Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  assignedTo  String?
+  reviewer    User?            @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  status      VerificationStatus @default(PENDING)
+  severity    SeverityLevel    @default(INFO)
+  notes       String?          @db.Text
+  createdAt   DateTime         @default(now())
+  reviewedAt  DateTime?
+
+  @@index([documentId])
+  @@index([assignedTo, status])
+}
 
 model Notification {
   id        String   @id @default(cuid())
@@ -555,13 +711,36 @@ model Notification {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  deliveries NotificationDelivery[]
+
   @@index([userId, read])
   @@index([createdAt])
 }
 
-// =====================================================
-// PAYMENTS / ESCROW / LEDGER
-// =====================================================
+model NotificationDelivery {
+  id              String                    @id @default(cuid())
+  notificationId  String
+  notification    Notification              @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  channel         NotificationChannel
+  status          NotificationDeliveryStatus @default(QUEUED)
+  providerMessageId String?
+  sentAt          DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@index([channel, status])
+}
+
+model PaymentProvider {
+  id            String   @id @default(cuid())
+  name          String   @unique       // e.g., "MobileMoney_AO", "BankTransfer_AO"
+  type          String                 // MOBILE_MONEY | BANK | CARD | CASH
+  isActive      Boolean  @default(true)
+  config        Json?                   // API keys, endpoints, fee structure
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
 
 model PaymentTransaction {
   id                String        @id @default(uuid())
@@ -570,7 +749,7 @@ model PaymentTransaction {
   amount            Decimal       @db.Decimal(18, 2)
   currency          String        @default("AOA")
   status            PaymentStatus @default(PENDING)
-  type              String? // PAYMENT, REFUND, WITHDRAWAL, DEPOSIT
+  type              String?       // PAYMENT, REFUND, WITHDRAWAL, DEPOSIT
   buyerConfirmed    Boolean       @default(false)
   sellerConfirmed   Boolean       @default(false)
   escrowHeldAt      DateTime?
@@ -586,6 +765,8 @@ model PaymentTransaction {
   seller        User                @relation("Seller", fields: [sellerId], references: [id], onDelete: Cascade)
   escrow        EscrowTransaction?  @relation("PaymentEscrow")
   ledgerEntries TransactionLedger[]
+  providerId    String?
+  provider      PaymentProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
 
   @@index([buyerId])
   @@index([sellerId])
@@ -614,8 +795,8 @@ model TransactionLedger {
   transaction   PaymentTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   userId        String
   user          User               @relation(fields: [userId], references: [id])
-  accountType   String // WALLET, ESCROW, REVENUE
-  entryType     String // DEBIT, CREDIT
+  accountType   String             // WALLET, ESCROW, REVENUE
+  entryType     String             // DEBIT, CREDIT
   amount        Float
   balance       Float
   description   String
@@ -636,7 +817,7 @@ model PaymentReference {
   status      PaymentStatus @default(PENDING)
   confirmedAt DateTime?
   createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  updatedAt   DateTime      @default(now()) @updatedAt
 
   @@index([reference])
   @@index([userId])
@@ -652,10 +833,6 @@ model WalletBalance {
 
   @@index([userId])
 }
-
-// =====================================================
-// TRANSFORMATION FACILITIES & BOOKINGS
-// =====================================================
 
 model TransformationFacility {
   id             String            @id @default(cuid())
@@ -702,10 +879,6 @@ model FacilityBooking {
   @@index([startDate, endDate])
 }
 
-// =====================================================
-// PRODUCTION PLANNING SYSTEM
-// =====================================================
-
 model ProductionPlan {
   id                   String           @id @default(cuid())
   producerId           String
@@ -728,8 +901,8 @@ model ProductionPlan {
   allowPreOrders       Boolean          @default(false)
   description          String?          @db.Text
   farmingMethod        String?
-  certifications       String[] // Postgres native array — or use Json if preferred
-  images               String[] // Postgres native array — or use Json if preferred
+  certifications       String[]
+  images               String[]
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
@@ -825,10 +998,6 @@ model PreOrder {
   @@index([status])
 }
 
-// =====================================================
-// OFFERINGS / SCHEDULING
-// =====================================================
-
 model Offering {
   id          String             @id @default(cuid())
   title       String
@@ -860,21 +1029,53 @@ model OfferingSchedule {
   @@index([bookedById])
 }
 
-// =====================================================
-// AUDIT LOGS
-// =====================================================
+model Certification {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  productListingId String?
+  productListing   ProductListing? @relation(fields: [productListingId], references: [id], onDelete: SetNull)
+  name          String   // e.g., "Organic", "FairTrade"
+  issuer        String
+  certificateId String
+  issueDate     DateTime
+  expiryDate    DateTime?
+  verified      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userId, productListingId])
+}
+
+model Promotion {
+  id               String        @id @default(cuid())
+  title            String
+  description      String?
+  type             PromotionType
+  value            Float         // percentage or fixed amount depending on type
+  startDate        DateTime
+  endDate          DateTime?
+  active           Boolean       @default(true)
+  appliesToListingId String?
+  listing          ProductListing? @relation(fields: [appliesToListingId], references: [id], onDelete: SetNull)
+  appliesToCategory String?      // optional category-wide promotion
+  createdAt        DateTime      @default(now())
+
+  @@index([active, startDate, endDate])
+}
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action     String
-  entityType String
-  entityId   String
-  details    Json?
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action        String
+  entityType    String
+  entityId      String
+  severity      SeverityLevel @default(INFO)
+  details       Json?
+  entitySnapshot Json?   // optional before/after states
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
 
   @@index([userId])
   @@index([action])
@@ -882,33 +1083,13 @@ model AuditLog {
   @@index([createdAt])
 }
 
-// =====================================================
-// PROCUREMENT
-// =====================================================
-
-model Supplier {
-  id         String      @id @default(cuid())
-  name       String
-  contact    String
-  location   String
-  createdAt  DateTime    @default(now())
-  components Component[]
-}
-
-model Component {
+model MetricSnapshot {
   id          String   @id @default(cuid())
-  name        String
-  category    String
-  specs       String   @db.Text
-  supplierId  String
-  supplier    Supplier @relation(fields: [supplierId], references: [id])
-  stockLevel  Int
-  unitPrice   Float
-  requestedBy String?
-  requester   User?    @relation("RequestedComponents", fields: [requestedBy], references: [id])
-  createdAt   DateTime @default(now())
+  key         String   // e.g., "daily_sales_AOA", "avg_delivery_days", "new_users"
+  scope       String?  // global, user:<id>, category:<name>
+  value       Float
+  capturedAt  DateTime @default(now())
+  metadata    Json?
 
-  @@index([supplierId])
-  @@index([category])
-  @@index([requestedBy])
+  @@index([key, capturedAt])
 }
