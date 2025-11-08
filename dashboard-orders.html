@@ -69,74 +69,111 @@
 </div>
 
 <script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    updateItem,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
-  const user = getSession();
-  renderUserInfo('#userInfo');
+const user = getSession();
+const token = localStorage.getItem('pdc_auth_token');
+renderUserInfo('#userInfo');
 
-  document.getElementById('logoutBtn').addEventListener('click', e => {
-    e.preventDefault();
-    logout();
-  });
+document.getElementById('logoutBtn').addEventListener('click', e => {
+  e.preventDefault();
+  logout();
+});
 
-  const ordersKey = 'pdc_orders_demo';
-  const receivedTable = document.getElementById('receivedOrdersTable');
-  const myTable = document.getElementById('myOrdersTable');
+const receivedTable = document.getElementById('receivedOrdersTable');
+const myTable = document.getElementById('myOrdersTable');
 
-  function renderOrders() {
-    const orders = getData(ordersKey) || [];
-    receivedTable.innerHTML = '';
-    myTable.innerHTML = '';
+async function fetchOrders() {
+  receivedTable.innerHTML = '<tr><td colspan="6">Carregando...</td></tr>';
+  myTable.innerHTML = '<tr><td colspan="6">Carregando...</td></tr>';
 
-    orders.forEach(order => {
-      const row = document.createElement('tr');
-      const isSeller = order.sellerId === user.email;
-      const isBuyer = order.buyerId === user.email;
-      row.innerHTML = `
-        <td>${order.id}</td>
-        <td>${isSeller ? order.buyer : order.seller}</td>
-        <td>${order.product}</td>
-        <td>${order.quantity}</td>
-        <td>${order.status}</td>
-        <td>
-          ${isSeller
-            ? `<button class="btn btn-sm btn-primary" onclick="confirmOrder('${order.id}')">Confirmar</button>`
-            : `<button class="btn btn-sm btn-outline" onclick="alert('Ver pedido ${order.id}')">Ver</button>`}
-        </td>
-      `;
-      if (isSeller) receivedTable.appendChild(row);
-      if (isBuyer) myTable.appendChild(row);
+  try {
+    const res = await fetch('/api/orders', {
+      headers: { Authorization: `Bearer ${token}` }
     });
+    if (!res.ok) throw new Error('Erro ao carregar pedidos');
+    const data = await res.json();
+    renderOrders(data.data || []);
+  } catch (err) {
+    receivedTable.innerHTML = `<tr><td colspan="6">Erro: ${err.message}</td></tr>`;
+    myTable.innerHTML = `<tr><td colspan="6">Erro: ${err.message}</td></tr>`;
   }
+}
 
-  window.confirmOrder = function(id) {
-    updateItem(ordersKey, id, { status: 'Confirmado' });
-    renderOrders();
-  };
+function renderOrders(orders) {
+  receivedTable.innerHTML = '';
+  myTable.innerHTML = '';
 
-  window.simulateOrder = function() {
-    const newOrder = {
-      id: 'ORD-' + Date.now(),
-      buyerId: user.email,
-      buyer: user.name || user.email,
-      sellerId: 'joao@agriconnect.ao',
-      seller: 'João',
-      product: 'Milho',
-      quantity: 10,
-      status: 'Pendente'
-    };
-    addItem(ordersKey, newOrder);
-    renderOrders();
-  };
+  orders.forEach(order => {
+    const row = document.createElement('tr');
+    const isSeller = order.items.some(i => i.product?.producerId === user.id);
+    const isBuyer = order.userId === user.id;
 
-  renderOrders();
+    const productNames = order.items.map(i => i.product?.title || 'Produto').join(', ');
+    const totalQty = order.items.reduce((sum, i) => sum + i.quantity, 0);
+
+    row.innerHTML = `
+      <td>${order.id}</td>
+      <td>${isSeller ? order.user?.email : 'Fornecedor'}</td>
+      <td>${productNames}</td>
+      <td>${totalQty}</td>
+      <td>${order.status || 'Pendente'}</td>
+      <td>
+        ${isSeller
+          ? `<button class="btn btn-sm btn-primary" onclick="confirmOrder('${order.id}')">Confirmar</button>`
+          : `<button class="btn btn-sm btn-outline" onclick="alert('Ver pedido ${order.id}')">Ver</button>`}
+      </td>
+    `;
+    if (isSeller) receivedTable.appendChild(row);
+    if (isBuyer) myTable.appendChild(row);
+  });
+}
+
+window.confirmOrder = async function(id) {
+  try {
+    const res = await fetch(`/api/orders/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status: 'Confirmado' })
+    });
+    if (!res.ok) throw new Error('Erro ao confirmar pedido');
+    await fetchOrders();
+  } catch (err) {
+    alert('Erro: ' + err.message);
+  }
+};
+
+window.simulateOrder = async function() {
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        items: [
+          {
+            productId: 'replace-with-valid-id', // ✅ You must replace this with a real product ID
+            quantity: 10
+          }
+        ]
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Erro ao criar pedido');
+    }
+    await fetchOrders();
+  } catch (err) {
+    alert('Erro: ' + err.message);
+  }
+};
+
+fetchOrders();
 </script>
 </body>
 </html>
