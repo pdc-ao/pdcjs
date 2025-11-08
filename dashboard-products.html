@@ -103,6 +103,7 @@
   import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
+  const token = localStorage.getItem('pdc_auth_token');
   renderUserInfo('#userInfo');
   document.getElementById('logoutBtn').addEventListener('click', e => { 
     e.preventDefault(); 
@@ -118,16 +119,20 @@
   async function loadProducts() {
     productTableBody.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
     try {
-      const res = await fetch('/api/products');
+      const res = await fetch('/api/products', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error('Erro ao carregar produtos');
       const data = await res.json();
-      const products = data.products.filter(p => p.producerId === user.id);
+      const products = Array.isArray(data.data) ? data.data : [];
+
+      const myProducts = products.filter(p => p.producerId === user.id);
       productTableBody.innerHTML = '';
-      if (products.length === 0) {
+      if (myProducts.length === 0) {
         productTableBody.innerHTML = '<tr><td colspan="5">Nenhum produto listado.</td></tr>';
         return;
       }
-      products.forEach(p => {
+      myProducts.forEach(p => {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${p.title}</td>
@@ -144,7 +149,6 @@
     }
   }
 
-  // Validação simples
   function validateForm(fd) {
     for (let [key, value] of fd.entries()) {
       if (!value) {
@@ -155,7 +159,6 @@
     return true;
   }
 
-  // Submissão com estado de carregamento
   productForm.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(productForm);
@@ -169,7 +172,10 @@
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           title: fd.get('title'),
           description: fd.get('description'),
@@ -180,7 +186,7 @@
         })
       });
       if (!res.ok) {
-        const err = await res.json().catch(()=>({}));
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Falha ao criar produto');
       }
       productForm.reset();
@@ -204,15 +210,12 @@
   }
 
   closeModalBtn.onclick = () => { editModal.style.display = 'none'; };
-
-  // Fechar modal ao clicar fora
   window.onclick = (e) => {
     if (e.target === editModal) {
       editModal.style.display = 'none';
     }
   };
 
-  // Edit form com estado de carregamento
   editForm.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(editForm);
@@ -226,7 +229,10 @@
     try {
       const res = await fetch(`/api/products/${fd.get('id')}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           title: fd.get('title'),
           pricePerUnit: fd.get('price'),
@@ -236,7 +242,7 @@
         })
       });
       if (!res.ok) {
-        const err = await res.json().catch(()=>({}));
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Falha ao atualizar');
       }
       editModal.style.display = 'none';
@@ -249,8 +255,8 @@
     }
   });
 
-  // carregar produtos ao iniciar
   loadProducts();
 </script>
+
 </body>
 </html>
