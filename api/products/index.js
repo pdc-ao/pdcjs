@@ -81,6 +81,7 @@ module.exports = async (req, res) => {
           quantityAvailable: Number(quantity),
           unitOfMeasure: unit,
           producerId: payload.userId, // assumes JWT payload includes userId
+          status: 'Active' //fixed
         },
       });
 
