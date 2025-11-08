@@ -276,3 +276,9 @@ section.container { padding: var(--space-6) var(--space-5); }
   section { padding: var(--space-5) 0; }
   .container { padding: var(--space-4); }
 }
+
+.actions button {
+  visibility: visible;
+  opacity: 1;
+  display: inline-block;
+}
