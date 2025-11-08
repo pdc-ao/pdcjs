@@ -130,17 +130,21 @@ async function loadProducts() {
       return;
     }
 
-    myProducts.forEach(p => {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${p.title}</td>
-        <td>${p.pricePerUnit}/${p.unitOfMeasure}</td>
-        <td>${p.quantityAvailable}</td>
-        <td>${p.status}</td>
-        <td class="actions"><button class="btn btn-sm btn-outline">Editar</button></td>
-      `;
-      productTableBody.appendChild(row);
-    });
+   myProducts.forEach(p => {
+   const row = document.createElement('tr');
+   row.innerHTML = `
+    <td>${p.title}</td>
+    <td>${p.pricePerUnit}/${p.unitOfMeasure}</td>
+    <td>${p.quantityAvailable}</td>
+    <td>${p.status}</td>
+    <td class="actions">
+      <button class="btn btn-sm btn-outline edit-btn">Editar</button>
+    </td>
+  `;
+  row.querySelector('.edit-btn').onclick = () => openEditModal(p);
+  productTableBody.appendChild(row);
+});
+
   } catch (err) {
     productTableBody.innerHTML = `<tr><td colspan="5">Erro: ${err.message}</td></tr>`;
   }
