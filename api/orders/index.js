@@ -3,8 +3,6 @@ const { verifyToken } = require('../../lib/jwt');
 
 require('dotenv').config();
 
-// POST /api/orders -> create order for authenticated user
-// GET /api/orders -> list orders for authenticated user (admins can list all with ?all=1)
 module.exports = async (req, res) => {
   try {
     const auth = req.headers.authorization || '';
@@ -22,32 +20,44 @@ module.exports = async (req, res) => {
       const { items = [] } = req.body || {};
       if (!items.length) return res.status(400).json({ error: 'items required' });
 
-      // Calculate total, validate products exist
       const productIds = items.map((i) => i.productId);
-      const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+      const products = await prisma.productListing.findMany({
+        where: { id: { in: productIds } }
+      });
 
       const productMap = new Map(products.map((p) => [p.id, p]));
       let total = 0;
+
       const orderItemsData = items.map((it) => {
         const prod = productMap.get(it.productId);
         if (!prod) throw new Error(`Product ${it.productId} not found`);
         const qty = Number(it.quantity || 1);
-        const price = Number(prod.price);
-        total += qty * price;
+        const price = Number(prod.pricePerUnit);
+        const subtotal = qty * price;
+        total += subtotal;
         return {
-          product: { connect: { id: prod.id } },
-          quantity: qty,
-          price,
+          productListing: { connect: { id: prod.id } },
+          quantityOrdered: qty,
+          pricePerUnitAtOrder: price,
+          subtotal
         };
       });
 
       const order = await prisma.order.create({
         data: {
-          user: { connect: { id: payload.userId } },
-          total,
-          items: { create: orderItemsData },
+          buyer: { connect: { id: payload.userId } },
+          seller: { connect: { id: products[0].producerId } }, // assumes all items from same seller
+          totalAmount: total,
+          currency: 'AOA',
+          orderStatus: 'PENDING',
+          paymentStatus: 'PENDING',
+          shippingAddressLine1: 'Rua Principal',
+          shippingCity: 'Luanda',
+          shippingPostalCode: '1000',
+          shippingCountry: 'Angola',
+          items: { create: orderItemsData }
         },
-        include: { items: true },
+        include: { items: true }
       });
 
       return res.status(201).json({ data: order });
@@ -55,14 +65,38 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
       const { all } = req.query;
-      const where = all === '1' && payload.role === 'ADMIN' ? {} : { userId: payload.userId };
-      const orders = await prisma.order.findMany({ where, include: { items: true }, orderBy: { createdAt: 'desc' } });
+
+      const where =
+        all === '1' && payload.role === 'ADMIN'
+          ? {}
+          : {
+              OR: [
+                { buyerId: payload.userId },
+                { sellerId: payload.userId },
+                { transporterId: payload.userId }
+              ]
+            };
+
+      const orders = await prisma.order.findMany({
+        where,
+        include: {
+          items: {
+            include: {
+              productListing: true
+            }
+          },
+          buyer: true,
+          seller: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
       return res.json({ data: orders });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    console.error(err);
+    console.error('[ORDERS API]', err);
     return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 };
