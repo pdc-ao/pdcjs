@@ -3,14 +3,11 @@ const { verifyToken } = require('../../lib/jwt');
 
 require('dotenv').config();
 
-// GET /api/products -> list (public preview or authenticated search)
-// POST /api/products -> create (requires Authorization: Bearer <token>)
 module.exports = async (req, res) => {
   try {
     if (req.method === 'GET') {
       const { page = 1, limit = 20, q } = req.query;
 
-      // Try to read token (optional for GET)
       const auth = req.headers.authorization || '';
       const token = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null;
       let payload = null;
@@ -22,7 +19,6 @@ module.exports = async (req, res) => {
         }
       }
 
-      // Only allow search if authenticated
       const where =
         payload && q
           ? {
@@ -44,7 +40,6 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
-      // Require token for publishing
       const auth = req.headers.authorization || '';
       const token = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null;
       if (!token) return res.status(401).json({ error: 'Missing token' });
@@ -56,7 +51,6 @@ module.exports = async (req, res) => {
         return res.status(401).json({ error: 'Invalid token' });
       }
 
-      // Only allow producers or admin to create products
       if (!['ADMIN', 'PRODUCER'].includes(payload.role)) {
         return res.status(403).json({ error: 'Insufficient permissions' });
       }
@@ -64,24 +58,28 @@ module.exports = async (req, res) => {
       const {
         name,
         description,
-        price = 0,
-        quantity = 0,
         unit = 'kg',
         category = 'general',
+        status = 'Active'
       } = req.body || {};
 
+      const price = Number(req.body.price);
+      const quantity = Number(req.body.quantity);
+
       if (!name) return res.status(400).json({ error: 'name required' });
+      if (isNaN(price)) return res.status(400).json({ error: 'invalid price' });
+      if (isNaN(quantity)) return res.status(400).json({ error: 'invalid quantity' });
 
       const product = await prisma.productListing.create({
         data: {
           title: name,
           description,
           category,
-          pricePerUnit: Number(price),
-          quantityAvailable: Number(quantity),
+          pricePerUnit: price,
+          quantityAvailable: quantity,
           unitOfMeasure: unit,
-          producerId: payload.userId, // assumes JWT payload includes userId
-          status: 'Active' //fixed
+          producerId: payload.userId,
+          status
         },
       });
 
