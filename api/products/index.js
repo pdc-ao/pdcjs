@@ -67,8 +67,8 @@ module.exports = async (req, res) => {
       const quantity = Number(req.body.quantity);
 
       if (!name) return res.status(400).json({ error: 'name required' });
-      if (isNaN(price)) return res.status(400).json({ error: 'invalid price' });
-      if (isNaN(quantity)) return res.status(400).json({ error: 'invalid quantity' });
+      if (isNaN(price) || price <= 0) return res.status(400).json({ error: 'invalid price' });
+      if (isNaN(quantity) || quantity < 0) return res.status(400).json({ error: 'invalid quantity' });
 
       const product = await prisma.productListing.create({
         data: {
