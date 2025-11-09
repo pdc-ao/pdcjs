@@ -139,13 +139,13 @@
 
     try {
       const payload = {
-        description: fd.get('description') || ''
         facilityName: fd.get('name'),
         storageType: fd.get('type'),
         totalCapacity: parseFloat(fd.get('capacity')),
         city: 'Luanda',
         pricingStructure: 'Por tonelada',
-        availabilityStatus: fd.get('status')
+        availabilityStatus: fd.get('status'),
+        description: fd.get('description') || ''
       };
 
       const res = await fetch('/api/storage', {
