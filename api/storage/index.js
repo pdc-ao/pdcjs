@@ -26,8 +26,17 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'POST') {
-      const { facilityName, storageType, totalCapacity, city, pricingStructure } = req.body || {};
-      if (!facilityName || !storageType || !totalCapacity || !city) {
+      const {
+        facilityName,
+        storageType,
+        totalCapacity,
+        city,
+        pricingStructure,
+        availabilityStatus,
+        description
+      } = req.body || {};
+
+      if (!facilityName || !storageType || !totalCapacity || !city || !description) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
@@ -40,7 +49,8 @@ module.exports = async (req, res) => {
           availableCapacity: parseFloat(totalCapacity),
           city,
           pricingStructure,
-          availabilityStatus: 'Available'
+          availabilityStatus: availabilityStatus || 'Available',
+          description
         }
       });
 
