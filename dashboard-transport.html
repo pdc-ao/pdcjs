@@ -76,15 +76,10 @@
 </div>
 
 <script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
+  const token = localStorage.getItem('pdc_auth_token');
   renderUserInfo('#userInfo');
 
   document.getElementById('logoutBtn').addEventListener('click', e => {
@@ -92,28 +87,40 @@
     logout();
   });
 
-  const transportKey = 'pdc_transport_demo';
   const transportTableBody = document.getElementById('transportTableBody');
   const transportForm = document.getElementById('transportForm');
   const transportMsg = document.getElementById('transportMsg');
 
-  function renderTransport() {
-    const listings = getData(transportKey) || [];
+  async function fetchTransport() {
+    transportTableBody.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
+    try {
+      const res = await fetch('/api/transport', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Erro ao carregar serviços');
+      const data = await res.json();
+      renderTransport(data.data || []);
+    } catch (err) {
+      transportTableBody.innerHTML = `<tr><td colspan="5">Erro: ${err.message}</td></tr>`;
+    }
+  }
+
+  function renderTransport(services) {
     transportTableBody.innerHTML = '';
-    const myListings = listings.filter(t => t.transporterId === user.email);
-    if (myListings.length === 0) {
+    const myServices = services.filter(s => s.transporterId === user.id);
+    if (myServices.length === 0) {
       transportMsg.textContent = 'Sem serviços ainda.';
       return;
     }
     transportMsg.textContent = '';
-    myListings.forEach(t => {
+    myServices.forEach(s => {
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td>${t.title}</td>
-        <td>${t.vehicle}</td>
-        <td>${t.routes}</td>
-        <td>${t.status}</td>
-        <td><button class="btn btn-sm btn-outline" onclick="alert('Editar: ${t.id}')">Editar</button></td>
+        <td>${s.title}</td>
+        <td>${s.vehicle}</td>
+        <td>${s.routes}</td>
+        <td>${s.status}</td>
+        <td><button class="btn btn-sm btn-outline" onclick="alert('Editar: ${s.id}')">Editar</button></td>
       `;
       transportTableBody.appendChild(row);
     });
@@ -129,17 +136,29 @@
     btn.textContent = 'Aguarde…';
 
     try {
-      const newTransport = {
-        id: Date.now().toString(),
-        transporterId: user.email,
+      const payload = {
         title: fd.get('title'),
         vehicle: fd.get('vehicle'),
         routes: fd.get('routes'),
         status: fd.get('status')
       };
-      addItem(transportKey, newTransport);
+
+      const res = await fetch('/api/transport', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao publicar serviço');
+      }
+
       transportForm.reset();
-      renderTransport();
+      await fetchTransport();
     } catch (err) {
       alert('Erro: ' + err.message);
     } finally {
@@ -148,7 +167,8 @@
     }
   });
 
-  renderTransport();
+  fetchTransport();
 </script>
+
 </body>
 </html>
