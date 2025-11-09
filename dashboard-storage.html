@@ -64,6 +64,7 @@
       <label>Nome da Instalação: <input type="text" name="name" required /></label><br/>
       <label>Tipo de Armazenamento: <input type="text" name="type" value="Frigorífico" required /></label><br/>
       <label>Capacidade (toneladas): <input type="number" name="capacity" required /></label><br/>
+      <label>Endereço: <input type="text" name="addressLine1" required /></label><br/>
       <label>Status: 
         <select name="status">
           <option value="Disponível">Disponível</option>
@@ -145,8 +146,10 @@
         city: 'Luanda',
         pricingStructure: 'Por tonelada',
         availabilityStatus: fd.get('status'),
-        description: fd.get('description') || ''
+        description: fd.get('description') || '',
+        addressLine1: fd.get('addressLine1') || ''
       };
+
 
       const res = await fetch('/api/storage', {
         method: 'POST',
