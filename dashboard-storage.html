@@ -65,6 +65,7 @@
       <label>Tipo de Armazenamento: <input type="text" name="type" value="Frigorífico" required /></label><br/>
       <label>Capacidade (toneladas): <input type="number" name="capacity" required /></label><br/>
       <label>Endereço: <input type="text" name="addressLine1" required /></label><br/>
+      <label>Código Postal: <input type="text" name="postalCode" required /></label><br/>
       <label>Status: 
         <select name="status">
           <option value="Disponível">Disponível</option>
@@ -147,7 +148,8 @@
         pricingStructure: 'Por tonelada',
         availabilityStatus: fd.get('status'),
         description: fd.get('description') || '',
-        addressLine1: fd.get('addressLine1') || ''
+        addressLine1: fd.get('addressLine1') || '',
+        postalCode: fd.get('postalCode') || ''
       };
 
 
