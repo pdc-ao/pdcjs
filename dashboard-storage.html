@@ -77,15 +77,10 @@
 </div>
 
 <script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
+  const token = localStorage.getItem('pdc_auth_token');
   renderUserInfo('#userInfo');
 
   document.getElementById('logoutBtn').addEventListener('click', e => {
@@ -93,15 +88,27 @@
     logout();
   });
 
-  const storageKey = 'pdc_storage_demo';
   const storageTableBody = document.getElementById('storageTableBody');
   const storageForm = document.getElementById('storageForm');
   const storageMsg = document.getElementById('storageMsg');
 
-  function renderStorage() {
-    const listings = getData(storageKey) || [];
+  async function fetchStorage() {
+    storageTableBody.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
+    try {
+      const res = await fetch('/api/storage', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Erro ao carregar armazéns');
+      const data = await res.json();
+      renderStorage(data.data || []);
+    } catch (err) {
+      storageTableBody.innerHTML = `<tr><td colspan="5">Erro: ${err.message}</td></tr>`;
+    }
+  }
+
+  function renderStorage(listings) {
     storageTableBody.innerHTML = '';
-    const myListings = listings.filter(s => s.ownerId === user.email);
+    const myListings = listings.filter(s => s.ownerId === user.id);
     if (myListings.length === 0) {
       storageMsg.textContent = 'Sem armazéns ainda.';
       return;
@@ -110,10 +117,10 @@
     myListings.forEach(s => {
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td>${s.name}</td>
-        <td>${s.type}</td>
-        <td>${s.capacity} t</td>
-        <td>${s.status}</td>
+        <td>${s.facilityName}</td>
+        <td>${s.storageType}</td>
+        <td>${s.availableCapacity} ${s.capacityUnit || 't'}</td>
+        <td>${s.availabilityStatus}</td>
         <td><button class="btn btn-sm btn-outline" onclick="alert('Editar: ${s.id}')">Editar</button></td>
       `;
       storageTableBody.appendChild(row);
@@ -130,17 +137,31 @@
     btn.textContent = 'Aguarde…';
 
     try {
-      const newStorage = {
-        id: Date.now().toString(),
-        ownerId: user.email,
-        name: fd.get('name'),
-        type: fd.get('type'),
-        capacity: parseFloat(fd.get('capacity')),
-        status: fd.get('status')
+      const payload = {
+        facilityName: fd.get('name'),
+        storageType: fd.get('type'),
+        totalCapacity: parseFloat(fd.get('capacity')),
+        city: 'Luanda',
+        pricingStructure: 'Por tonelada',
+        availabilityStatus: fd.get('status')
       };
-      addItem(storageKey, newStorage);
+
+      const res = await fetch('/api/storage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao publicar armazém');
+      }
+
       storageForm.reset();
-      renderStorage();
+      await fetchStorage();
     } catch (err) {
       alert('Erro: ' + err.message);
     } finally {
@@ -149,7 +170,7 @@
     }
   });
 
-  renderStorage();
+  fetchStorage();
 </script>
 </body>
 </html>
