@@ -33,10 +33,18 @@ module.exports = async (req, res) => {
         city,
         pricingStructure,
         availabilityStatus,
-        description
+        description,
+        addressLine1
       } = req.body || {};
 
-      if (!facilityName || !storageType || !totalCapacity || !city || !description) {
+      if (
+        !facilityName ||
+        !storageType ||
+        !totalCapacity ||
+        !city ||
+        !description ||
+        !addressLine1
+      ) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
@@ -50,7 +58,8 @@ module.exports = async (req, res) => {
           city,
           pricingStructure,
           availabilityStatus: availabilityStatus || 'Available',
-          description
+          description,
+          addressLine1
         }
       });
 
