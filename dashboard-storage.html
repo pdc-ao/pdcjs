@@ -60,6 +60,7 @@
   <div class="card">
     <h2>Adicionar Novo Armazém</h2>
     <form id="storageForm">
+      <label>Descrição: <textarea name="description" rows="3"></textarea></label><br/>
       <label>Nome da Instalação: <input type="text" name="name" required /></label><br/>
       <label>Tipo de Armazenamento: <input type="text" name="type" value="Frigorífico" required /></label><br/>
       <label>Capacidade (toneladas): <input type="number" name="capacity" required /></label><br/>
@@ -138,6 +139,7 @@
 
     try {
       const payload = {
+        description: fd.get('description') || ''
         facilityName: fd.get('name'),
         storageType: fd.get('type'),
         totalCapacity: parseFloat(fd.get('capacity')),
