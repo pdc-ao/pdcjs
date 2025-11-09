@@ -105,19 +105,19 @@ function renderOrders(orders) {
   myTable.innerHTML = '';
 
   orders.forEach(order => {
+    const isSeller = order.sellerId === user.id;
+    const isBuyer = order.buyerId === user.id;
+
+    const productNames = order.orderItems.map(i => i.productListing?.title || 'Produto').join(', ');
+    const totalQty = order.orderItems.reduce((sum, i) => sum + i.quantityOrdered, 0);
+
     const row = document.createElement('tr');
-    const isSeller = order.items.some(i => i.product?.producerId === user.id);
-    const isBuyer = order.userId === user.id;
-
-    const productNames = order.items.map(i => i.product?.title || 'Produto').join(', ');
-    const totalQty = order.items.reduce((sum, i) => sum + i.quantity, 0);
-
     row.innerHTML = `
       <td>${order.id}</td>
-      <td>${isSeller ? order.user?.email : 'Fornecedor'}</td>
+      <td>${isSeller ? order.buyer?.email : order.seller?.email}</td>
       <td>${productNames}</td>
       <td>${totalQty}</td>
-      <td>${order.status || 'Pendente'}</td>
+      <td>${order.orderStatus || 'Pendente'}</td>
       <td>
         ${isSeller
           ? `<button class="btn btn-sm btn-primary" onclick="confirmOrder('${order.id}')">Confirmar</button>`
@@ -137,7 +137,7 @@ window.confirmOrder = async function(id) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ status: 'Confirmado' })
+      body: JSON.stringify({ orderStatus: 'CONFIRMED' })
     });
     if (!res.ok) throw new Error('Erro ao confirmar pedido');
     await fetchOrders();
@@ -147,8 +147,23 @@ window.confirmOrder = async function(id) {
 };
 
 window.simulateOrder = async function() {
+  if (!token) {
+    alert('Sessão expirada. Por favor, faça login novamente.');
+    logout();
+    return;
+  }
+
   try {
-    const res = await fetch('/api/orders', {
+    const res = await fetch('/api/products', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const products = data.data || [];
+
+    const product = products.find(p => p.producerId !== user.id);
+    if (!product) throw new Error('Nenhum produto disponível para simular');
+
+    const orderRes = await fetch('/api/orders', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -157,16 +172,18 @@ window.simulateOrder = async function() {
       body: JSON.stringify({
         items: [
           {
-            productId: 'replace-with-valid-id', // ✅ You must replace this with a real product ID
+            productId: product.id,
             quantity: 10
           }
         ]
       })
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+
+    if (!orderRes.ok) {
+      const err = await orderRes.json().catch(() => ({}));
       throw new Error(err.error || 'Erro ao criar pedido');
     }
+
     await fetchOrders();
   } catch (err) {
     alert('Erro: ' + err.message);
@@ -175,5 +192,6 @@ window.simulateOrder = async function() {
 
 fetchOrders();
 </script>
+
 </body>
 </html>
