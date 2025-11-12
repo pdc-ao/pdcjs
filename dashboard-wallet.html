@@ -6,6 +6,11 @@
   <title>Dashboard — Pagamentos</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
+    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
+    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
+    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
+    .main { margin-left:240px; padding:20px; }
+    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 0.5rem; border-bottom: 1px solid #ddd; }
     .actions button { margin-right: 0.25rem; }
@@ -41,7 +46,6 @@
   <a href="auth.html" id="logoutBtn">🚪 Sair</a>
   <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
-
 <div class="main">
   <h1>Carteira</h1>
   <p id="userInfo">Carregando sessão...</p>
@@ -67,13 +71,17 @@
     <div id="paymentMsg" class="muted"></div>
   </div>
 </div>
-
 <script type="module">
   import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
+  const token = localStorage.getItem('pdc_auth_token');
   renderUserInfo('#userInfo');
-  document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
+
+  document.getElementById('logoutBtn').addEventListener('click', e => {
+    e.preventDefault();
+    logout();
+  });
 
   const tbody = document.getElementById('transactionTableBody');
   const paymentForm = document.getElementById('paymentForm');
@@ -82,7 +90,9 @@
   async function loadTransactions() {
     tbody.innerHTML = '<tr><td colspan="4">Carregando...</td></tr>';
     try {
-      const res = await fetch('/api/payments/transactions');
+      const res = await fetch('/api/payments/transactions', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error('Erro ao carregar');
       const txns = await res.json();
       tbody.innerHTML = '';
@@ -93,33 +103,38 @@
       txns.forEach(t => {
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td><a href="transaction-detail.html?id=${t.id}">${t.id}</a></td>          
+          <td><a href="transaction-detail.html?id=${t.id}">${t.id}</a></td>
           <td>AOA ${Number(t.amount).toFixed(2)}</td>
           <td>${t.status}</td>
           <td class="actions"></td>
         `;
         const actionsCell = row.querySelector('.actions');
-        if (t.status === 'PENDING' && t.buyerId === user.id) {
+        const isBuyer = t.buyerId === user.id;
+        const isSeller = t.sellerId === user.id;
+        const isAdmin = user.role === 'ADMIN';
+
+        if (t.status === 'PENDING' && isBuyer) {
           actionsCell.appendChild(makeBtn('Fund', () => act(t.id, 'FUND'), 'btn btn-sm btn-primary'));
           actionsCell.appendChild(makeBtn('Cancelar', () => act(t.id, 'CANCEL'), 'btn btn-sm btn-outline btn-danger'));
         }
-        if (t.status === 'FUNDED' && t.sellerId === user.id) {
+        if (t.status === 'FUNDED' && isSeller) {
           actionsCell.appendChild(makeBtn('Confirmar Venda', () => act(t.id, 'SELLER_CONFIRM'), 'btn btn-sm btn-primary'));
         }
-        if (['FUNDED','SELLER_CONFIRMED'].includes(t.status) && t.buyerId === user.id) {
+        if (['FUNDED', 'SELLER_CONFIRMED'].includes(t.status) && isBuyer) {
           actionsCell.appendChild(makeBtn('Confirmar Compra', () => act(t.id, 'BUYER_CONFIRM'), 'btn btn-sm btn-primary'));
         }
-        if (['FUNDED','SELLER_CONFIRMED','BUYER_CONFIRMED'].includes(t.status) && (t.buyerId === user.id || t.sellerId === user.id)) {
+        if (['FUNDED', 'SELLER_CONFIRMED', 'BUYER_CONFIRMED'].includes(t.status) && (isBuyer || isSeller)) {
           actionsCell.appendChild(makeBtn('Disputar', () => act(t.id, 'DISPUTE'), 'btn btn-sm btn-outline btn-danger'));
         }
-        if (user.role === 'ADMIN') {
-          if (['BUYER_CONFIRMED','SELLER_CONFIRMED'].includes(t.status)) {
+        if (isAdmin) {
+          if (['BUYER_CONFIRMED', 'SELLER_CONFIRMED'].includes(t.status)) {
             actionsCell.appendChild(makeBtn('Liberar', () => act(t.id, 'RELEASE'), 'btn btn-sm btn-success'));
           }
           if (t.status === 'DISPUTED') {
             actionsCell.appendChild(makeBtn('Reembolsar', () => act(t.id, 'REFUND'), 'btn btn-sm btn-warning'));
           }
         }
+
         tbody.appendChild(row);
       });
     } catch (err) {
@@ -134,16 +149,20 @@
     btn.onclick = handler;
     return btn;
   }
+
   async function act(id, action) {
     if (!confirm(`Executar ação ${action} na transação ${id}?`)) return;
     try {
       const res = await fetch(`/api/payments/transactions/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ action })
       });
       if (!res.ok) {
-        const err = await res.json().catch(()=>({}));
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Falha');
       }
       await loadTransactions();
@@ -163,7 +182,10 @@
     try {
       const res = await fetch('/api/payments/transactions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           sellerId: fd.get('sellerId'),
           amount: fd.get('amount'),
@@ -171,7 +193,7 @@
         })
       });
       if (!res.ok) {
-        const err = await res.json().catch(()=>({}));
+        const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Falha');
       }
       paymentForm.reset();
@@ -185,7 +207,6 @@
     }
   });
 
-  // carregar transações ao iniciar
   loadTransactions();
 </script>
 </body>

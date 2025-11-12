@@ -69,15 +69,10 @@
 </div>
 
 <script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
+  const token = localStorage.getItem('pdc_auth_token');
   renderUserInfo('#userInfo');
 
   document.getElementById('logoutBtn').addEventListener('click', e => {
@@ -85,23 +80,35 @@
     logout();
   });
 
-  const reviewsKey = 'pdc_reviews_demo';
   const reviewList = document.getElementById('reviewList');
   const reviewForm = document.getElementById('reviewForm');
   const reviewMsg = document.getElementById('reviewMsg');
 
-  function renderReviews() {
-    const reviews = getData(reviewsKey) || [];
+  async function fetchReviews() {
+    reviewList.innerHTML = '<li>Carregando avaliações...</li>';
+    try {
+      const res = await fetch('/api/reviews', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Erro ao carregar avaliações');
+      const data = await res.json();
+      renderReviews(data.data || []);
+    } catch (err) {
+      reviewList.innerHTML = `<li>Erro: ${err.message}</li>`;
+    }
+  }
+
+  function renderReviews(reviews) {
     reviewList.innerHTML = '';
-    const myReviews = reviews.filter(r => r.target === user.email);
-    if (myReviews.length === 0) {
+    if (reviews.length === 0) {
       reviewMsg.textContent = 'Sem avaliações ainda.';
       return;
     }
     reviewMsg.textContent = '';
-    myReviews.forEach(r => {
+    reviews.forEach(r => {
       const li = document.createElement('li');
-      li.innerHTML = `<strong>${r.reviewer}</strong>: ${'⭐'.repeat(r.rating)} — "${r.comment}"`;
+      const name = r.reviewer?.fullName || r.reviewer?.email || 'Usuário';
+      li.innerHTML = `<strong>${name}</strong>: ${'⭐'.repeat(r.rating)} — "${r.comment}"`;
       reviewList.appendChild(li);
     });
   }
@@ -115,17 +122,28 @@
     btn.textContent = 'Aguarde…';
 
     try {
-      const newReview = {
-        id: Date.now().toString(),
-        reviewer: user.email,
-        target: fd.get('target'),
+      const payload = {
+        targetId: fd.get('target'),
         rating: parseInt(fd.get('rating')),
-        comment: fd.get('comment') || '',
-        date: new Date().toISOString()
+        comment: fd.get('comment') || ''
       };
-      addItem(reviewsKey, newReview);
+
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao enviar avaliação');
+      }
+
       reviewForm.reset();
-      renderReviews();
+      await fetchReviews();
     } catch (err) {
       alert('Erro: ' + err.message);
     } finally {
@@ -134,7 +152,7 @@
     }
   });
 
-  renderReviews();
+  fetchReviews();
 </script>
 </body>
 </html>

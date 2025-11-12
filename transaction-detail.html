@@ -16,42 +16,42 @@
     .label { font-weight: bold; display: inline-block; width: 150px; }
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     th, td { padding: 0.5rem; border-bottom: 1px solid #ddd; }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #fff;
+    }
+    .status-PENDING { background: #6c757d; }
+    .status-FUNDED { background: #007bff; }
+    .status-SELLER_CONFIRMED { background: #17a2b8; }
+    .status-BUYER_CONFIRMED { background: #28a745; }
+    .status-RELEASED { background: #20c997; }
+    .status-DISPUTED { background: #ffc107; color: #000; }
+    .status-REFUNDED { background: #fd7e14; }
+    .status-CANCELLED { background: #dc3545; }
+    .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; margin-right: 8px; }
+    .btn-success { background: #28a745; color: #fff; }
+    .btn-warning { background: #ffc107; color: #000; }
+    .muted { color: var(--muted); font-style: italic; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
 <div class="sidebar">
   <h2>AgriConnect</h2>
   <a href="dashboard.html">📊 Dashboard</a>
-  <a href="dashboard-products.html">📦 Produtos</a>
-  <a href="dashboard-orders.html">🛒 Pedidos</a>
-  <a href="dashboard-storage.html">🏭 Armazenamento</a>
-  <a href="dashboard-transport.html">🚚 Transporte</a>
-  <a href="dashboard-transformation.html">⚙️ Transformação</a>
-  <a href="dashboard-messages.html">💬 Mensagens</a>
-  <a href="dashboard-reviews.html">⭐ Avaliações</a>
   <a href="dashboard-wallet.html" class="active">💳 Pagamentos</a>
-  <a href="dashboard-notifications.html">🔔 Notificações</a>
-  <a href="dashboard-admin.html">🛠️ Admin</a>
-  <a href="dashboard-procurement.html">📥 Procurement</a>
-  <a href="dashboard-offerings.html">🎁 Ofertas</a>
-  <a href="dashboard-facilities.html">🏗️ Instalações</a>
-  <a href="dashboard-production.html">🧪 Produção</a>
-  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
-  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
-  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
-  <a href="dashboard-transporter.html">🚛 Transportador</a>
   <a href="auth.html" id="logoutBtn">🚪 Sair</a>
-  <a href="upload-documents.html">📑 Enviar Documentos</a>
 </div>
 
 <div class="main">
   <h1>Detalhe da Transação</h1>
   <p id="userInfo">Carregando sessão...</p>
 
-  <!-- Transaction details -->
   <div class="detail-card" id="txnDetail">Carregando detalhes da transação...</div>
 
-  <!-- Audit trail -->
   <div class="detail-card">
     <h3>Histórico de Ações</h3>
     <table>
@@ -62,6 +62,13 @@
         <tr><td colspan="4">Carregando...</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="detail-card" id="adminActions" style="display:none;">
+    <h3>Ações Administrativas</h3>
+    <button id="releaseBtn" class="btn btn-success">Liberar Pagamento</button>
+    <button id="refundBtn" class="btn btn-warning">Reembolsar</button>
+    <div id="adminMsg" class="muted"></div>
   </div>
 </div>
 
@@ -76,43 +83,75 @@
   document.getElementById('yearTD').innerText = new Date().getFullYear();
 
   const user = getSession();
+  const token = localStorage.getItem('pdc_auth_token');
   renderUserInfo('#userInfo');
   document.getElementById('logoutBtn').addEventListener('click', e => { e.preventDefault(); logout(); });
 
-  const params = new URLSearchParams(location.search);
-  const txnId = params.get('id');
+  const txnId = new URLSearchParams(location.search).get('id');
+  const statusLabels = {
+    PENDING: 'Pendente',
+    FUNDED: 'Financiado',
+    SELLER_CONFIRMED: 'Confirmado pelo Vendedor',
+    BUYER_CONFIRMED: 'Confirmado pelo Comprador',
+    RELEASED: 'Liberado',
+    DISPUTED: 'Em Disputa',
+    REFUNDED: 'Reembolsado',
+    CANCELLED: 'Cancelado'
+  };
+  const statusTips = {
+    PENDING: 'Aguardando financiamento do comprador.',
+    FUNDED: 'Pagamento em custódia.',
+    SELLER_CONFIRMED: 'Vendedor confirmou a entrega.',
+    BUYER_CONFIRMED: 'Comprador confirmou o recebimento.',
+    RELEASED: 'Pagamento liberado ao vendedor.',
+    DISPUTED: 'Transação contestada por uma das partes.',
+    REFUNDED: 'Valor devolvido ao comprador.',
+    CANCELLED: 'Transação cancelada antes do pagamento.'
+  };
 
-  // Load transaction details
   async function loadTransaction() {
     const container = document.getElementById('txnDetail');
     try {
-      const res = await fetch(`/api/payments/transactions/${txnId}`);
+      const res = await fetch(`/api/payments/transactions/${txnId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error('Erro ao carregar detalhes');
       const t = await res.json();
+      const badge = `<span class="status-badge status-${t.status}" title="${statusTips[t.status] || ''}">${statusLabels[t.status] || t.status}</span>`;
       container.innerHTML = `
         <h2>Transação ${t.id}</h2>
         <div class="detail-row"><span class="label">Valor:</span> AOA ${Number(t.amount).toFixed(2)}</div>
-        <div class="detail-row"><span class="label">Status:</span> ${t.status}</div>
+        <div class="detail-row"><span class="label">Status:</span> ${badge}</div>
         <div class="detail-row"><span class="label">Comprador:</span> ${t.buyer?.fullName || t.buyer?.username || t.buyerId}</div>
         <div class="detail-row"><span class="label">Vendedor:</span> ${t.seller?.fullName || t.seller?.username || t.sellerId}</div>
         <div class="detail-row"><span class="label">Descrição:</span> ${t.description || '-'}</div>
         <div class="detail-row"><span class="label">Criado em:</span> ${new Date(t.createdAt).toLocaleString()}</div>
         ${t.releasedAt ? `<div class="detail-row"><span class="label">Finalizado em:</span> ${new Date(t.releasedAt).toLocaleString()}</div>` : ''}
       `;
+
+      const adminBox = document.getElementById('adminActions');
+      const releaseBtn = document.getElementById('releaseBtn');
+      const refundBtn = document.getElementById('refundBtn');
+      if (user.role === 'ADMIN' && ['BUYER_CONFIRMED', 'SELLER_CONFIRMED', 'DISPUTED'].includes(t.status)) {
+        adminBox.style.display = 'block';
+        releaseBtn.style.display = ['BUYER_CONFIRMED', 'SELLER_CONFIRMED'].includes(t.status) ? 'inline-block' : 'none';
+        refundBtn.style.display = t.status === 'DISPUTED' ? 'inline-block' : 'none';
+      }
     } catch (err) {
       container.textContent = '❌ Erro: ' + err.message;
     }
   }
 
-  // Load audit trail events
   async function loadEvents() {
     const tbody = document.getElementById('eventLog');
     try {
-      const res = await fetch(`/api/payments/transactions/${txnId}/events`);
+      const res = await fetch(`/api/payments/transactions/${txnId}/events`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error('Erro ao carregar eventos');
       const events = await res.json();
       tbody.innerHTML = '';
-      if (!events || events.length === 0) {
+      if (!events.length) {
         tbody.innerHTML = '<tr><td colspan="4">Nenhum evento registrado.</td></tr>';
         return;
       }
@@ -130,6 +169,33 @@
       tbody.innerHTML = `<tr><td colspan="4">❌ Erro: ${err.message}</td></tr>`;
     }
   }
+
+  async function adminAct(action) {
+    if (!confirm(`Executar ação administrativa: ${action}?`)) return;
+    const adminMsg = document.getElementById('adminMsg');
+    try {
+      const res = await fetch(`/api/payments/transactions/${txnId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Falha');
+      }
+      adminMsg.textContent = `✅ Ação ${action} executada com sucesso.`;
+      await loadTransaction();
+      await loadEvents();
+    } catch (err) {
+      adminMsg.textContent = `❌ Erro: ${err.message}`;
+    }
+  }
+
+  document.getElementById('releaseBtn').onclick = () => adminAct('RELEASE');
+  document.getElementById('refundBtn').onclick = () => adminAct('REFUND');
 
   loadTransaction();
   loadEvents();

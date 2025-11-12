@@ -75,15 +75,10 @@
 </div>
 
 <script type="module">
-  import {
-    getSession,
-    logout,
-    getData,
-    addItem,
-    renderUserInfo
-  } from './js/dashboard.js';
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
 
   const user = getSession();
+  const token = localStorage.getItem('pdc_auth_token');
   renderUserInfo('#userInfo');
 
   document.getElementById('logoutBtn').addEventListener('click', e => {
@@ -91,15 +86,27 @@
     logout();
   });
 
-  const transformationKey = 'pdc_transformation_demo';
   const transformationTableBody = document.getElementById('transformationTableBody');
   const transformationForm = document.getElementById('transformationForm');
   const transformationMsg = document.getElementById('transformationMsg');
 
-  function renderTransformations() {
-    const services = getData(transformationKey) || [];
+  async function fetchTransformations() {
+    transformationTableBody.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
+    try {
+      const res = await fetch('/api/transformation', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Erro ao carregar serviços');
+      const data = await res.json();
+      renderTransformations(data.data || []);
+    } catch (err) {
+      transformationTableBody.innerHTML = `<tr><td colspan="5">Erro: ${err.message}</td></tr>`;
+    }
+  }
+
+  function renderTransformations(services) {
     transformationTableBody.innerHTML = '';
-    const myServices = services.filter(s => s.ownerId === user.email);
+    const myServices = services.filter(s => s.ownerId === user.id);
     if (myServices.length === 0) {
       transformationMsg.textContent = 'Sem serviços ainda.';
       return;
@@ -128,17 +135,29 @@
     btn.textContent = 'Aguarde…';
 
     try {
-      const newService = {
-        id: Date.now().toString(),
-        ownerId: user.email,
+      const payload = {
         name: fd.get('name'),
         type: fd.get('type'),
         location: fd.get('location'),
         status: fd.get('status')
       };
-      addItem(transformationKey, newService);
+
+      const res = await fetch('/api/transformation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao publicar serviço');
+      }
+
       transformationForm.reset();
-      renderTransformations();
+      await fetchTransformations();
     } catch (err) {
       alert('Erro: ' + err.message);
     } finally {
@@ -147,7 +166,7 @@
     }
   });
 
-  renderTransformations();
+  fetchTransformations();
 </script>
 </body>
 </html>
