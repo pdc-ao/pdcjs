@@ -2,12 +2,11 @@
 // api/transformation.js – Transformation (Facilidade) API
 // ---------------------------------------------------------------
 // Endpoints:
-//
 //   GET  /api/transformation   → list all transformation facilities
-//   POST /api/transformation   → create a new facility
-// ---------------------------------------------------------------
+//   POST /api/transformation   → create a new facility (capacity defaults to 0)
+// ----------------------------------------------------------------
 // Returns JSON { data: [...] } (or { error: … }) – same shape as the
-// other API endpoints (products, storage, transport, …).
+// other APIs (products, storage, transport, …).
 // ===============================================================
 
 const prisma = require('../lib/prisma');          // adjust if lib folder is elsewhere
@@ -54,7 +53,6 @@ module.exports = async (req, res) => {
   if (req.method === 'GET' && req.url.startsWith('/api/transformation')) {
     try {
       const raw = await prisma.transformationFacility.findMany({
-        // We only need the columns that the UI cares about.
         select: {
           id: true,
           name: true,
@@ -66,11 +64,11 @@ module.exports = async (req, res) => {
         orderBy: { createdAt: 'desc' }
       });
 
-      // Map DB fields → UI field names
+      // Map DB → UI field names
       const transformed = raw.map(fac => ({
         id: fac.id,
         name: fac.name,
-        type: fac.serviceType,                     // UI expects `type`
+        type: fac.serviceType,                              // UI expects `type`
         location: fac.location,
         status: fac.isActive ? 'Disponível' : 'Indisponível', // UI expects string
         ownerId: fac.ownerId
@@ -106,25 +104,30 @@ module.exports = async (req, res) => {
       return json(res, { error: 'Invalid JSON body' }, 400);
     }
 
-    // ---- Validate required fields -------------------------------------------
+    // ---- Validate required UI fields ----------------------------------------
     const required = ['name', 'type', 'location', 'status'];
     for (const f of required) {
       if (!body[f]) return json(res, { error: `${f} is required` }, 400);
     }
 
-    // ---- Convert UI `status` (string) → DB `isActive` (boolean) ---------------
+    // ---- UI `status` (string) → DB `isActive` (boolean) --------------------
     const isActive = body.status === 'Disponível';
 
-    // ---- Build Prisma create payload -----------------------------------------
+    // ---- Build Prisma `create` payload --------------------------------------
     const data = {
       ownerId: userId,
       name: body.name,
       serviceType: body.type,
       location: body.location,
-      isActive,                     // boolean
-      // Optional numeric fields – you can extend later if you need them
-      capacity: body.capacity ? Number(body.capacity) : undefined,
-      processingRate: body.processingRate ? Number(body.processingRate) : undefined
+      isActive,
+      // **capacity is required in the schema.** If the client does not send
+      // one, we default to 0 (you can change this to any sensible number).
+      capacity: body.capacity ? Number(body.capacity) : 0,
+      // `processingRate` has a DB default of 0, so we can omit it unless you
+      // want to set a custom value.
+      processingRate: body.processingRate
+        ? Number(body.processingRate)
+        : undefined
     };
 
     try {
@@ -140,7 +143,7 @@ module.exports = async (req, res) => {
         }
       });
 
-      // Map back to UI shape before sending the response
+      // Map back to the UI shape
       const mapped = {
         id: created.id,
         name: created.name,
@@ -153,7 +156,6 @@ module.exports = async (req, res) => {
       return json(res, { data: mapped }, 201);
     } catch (e) {
       console.error('[transformation POST]', e);
-      // Prisma unique‑constraint (P2002) → 409 Conflict
       if (e.code === 'P2002') return json(res, { error: 'Duplicate entry' }, 409);
       return json(res, { error: 'Server error' }, 500);
     }
