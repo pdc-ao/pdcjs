@@ -1,33 +1,35 @@
-// ==== api/orders.js ====================================================
-// Orders API – pure Node + Prisma, no compilation needed.
+// ================================================================
+// api/orders.js   –  Orders API (GET /api/orders, POST /api/orders, PATCH /api/orders/:id)
 // ---------------------------------------------------------------
-// Expected routes (handled by the catch‑all `[...slug].js`):
-//   GET    /api/orders                → list orders for logged‑in user
-//   POST   /api/orders                → create a new order (buyer)
-//   PATCH  /api/orders/:orderId       → update order status (seller only)
-// ---------------------------------------------------------------
+// Uses Prisma + JWT (same helpers as other API files).
+// The only change from the previous version is that we now
+// include the relation **productListing** (the correct name in the schema)
+// instead of the non‑existent `product` field.
+// ================================================================
 
-const prisma = require('../lib/prisma');          // <-- adjust path if lib is elsewhere
-const { verifyToken } = require('../lib/jwt');    // same as other API files
-require('dotenv').config();                       // loads .env (DB URL, JWT secret …)
+const prisma = require('../lib/prisma');          // adjust path if your lib folder is elsewhere
+const { verifyToken } = require('../lib/jwt');
+require('dotenv').config();                       // loads PRISMA_DATABASE_URL, JWT secret, etc.
 
-// Helper: send JSON with proper headers
+// ---------- Helper to send JSON responses ----------
 function json(res, payload, status = 200) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
 }
 
-// ---------- Main exported handler ----------
+// ---------------------------------------------------------------
+// Main exported handler – Vercel calls this with (req, res)
+// ---------------------------------------------------------------
 module.exports = async (req, res) => {
-  // ---- CORS (the outer catch‑all already does this, but we keep it for safety) ----
+  // ---------- CORS (Vercel already does this, but we keep it safe) ----------
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.end();
 
-  // ---- Authentication ---------------------------------------------------------
+  // ---------- Authentication ----------
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
   if (!token) return json(res, { error: 'Missing token' }, 401);
@@ -39,25 +41,23 @@ module.exports = async (req, res) => {
     return json(res, { error: 'Invalid token' }, 401);
   }
 
-  const userId = payload.userId;           // <-- whatever your JWT contains
-  const userRole = payload.role || '';     // may be useful later (ADMIN, PRODUCER …)
+  const userId = payload.userId;   // same field used throughout the project
+  const userRole = payload.role || '';
 
-  // -------------------------------------------------------------------------
-  // 1️⃣ GET /api/orders  → return orders where current user is buyer OR seller
-  // -------------------------------------------------------------------------
+  // -----------------------------------------------------------------
+  // 1️⃣ GET /api/orders → list orders where current user is buyer OR seller
+  // -----------------------------------------------------------------
   if (req.method === 'GET' && req.url.startsWith('/api/orders')) {
     try {
       const orders = await prisma.order.findMany({
         where: {
-          OR: [
-            { buyerId: userId },
-            { sellerId: userId }
-          ]
+          OR: [{ buyerId: userId }, { sellerId: userId }]
         },
         include: {
+          // 👉 **IMPORTANT** – use productListing (the name in your schema)
           orderItems: {
             include: {
-              product: {
+              productListing: {
                 select: {
                   id: true,
                   title: true,
@@ -67,13 +67,17 @@ module.exports = async (req, res) => {
               }
             }
           },
-          buyer:   { select: { id: true, email: true, fullName: true } },
-          seller:  { select: { id: true, email: true, fullName: true } }
+          buyer: {
+            select: { id: true, email: true, fullName: true }
+          },
+          seller: {
+            select: { id: true, email: true, fullName: true }
+          }
         },
         orderBy: { createdAt: 'desc' }
       });
 
-      // The front‑end expects the shape: { data: [...] }
+      // Front‑end expects { data: [...] }
       return json(res, { data: orders });
     } catch (e) {
       console.error('[orders GET]', e);
@@ -81,11 +85,11 @@ module.exports = async (req, res) => {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // 2️⃣ POST /api/orders  → create a new order (buyer)
-  // -------------------------------------------------------------------------
+  // -----------------------------------------------------------------
+  // 2️⃣ POST /api/orders → create a new order (buyer)
+  // -----------------------------------------------------------------
   if (req.method === 'POST' && req.url === '/api/orders') {
-    // ---- parse JSON body ----------------------------------------------------
+    // ---- Parse request JSON body ------------------------------------
     let body;
     try {
       body = await new Promise((resolve, reject) => {
@@ -109,37 +113,38 @@ module.exports = async (req, res) => {
       return json(res, { error: 'items array required' }, 400);
     }
 
-    // ---- Validate each item (basic) ----------------------------------------
+    // ---- Basic validation of each order item -----------------------
     for (const it of items) {
       if (!it.productId) return json(res, { error: 'productId missing' }, 400);
       if (!it.quantity || it.quantity <= 0) return json(res, { error: 'invalid quantity' }, 400);
     }
 
     try {
-      // The product’s producer becomes the **seller** of the order.
-      // We fetch the first item's product to discover the seller.
-      const firstProduct = await prisma.product.findUnique({
+      // Find the seller (producer) of the **first** product – the UI only creates a single‑product order.
+      const firstProd = await prisma.product.findUnique({
         where: { id: Number(items[0].productId) },
         select: { producerId: true }
       });
-      if (!firstProduct) return json(res, { error: 'Product not found' }, 404);
+      if (!firstProd) return json(res, { error: 'Product not found' }, 404);
 
       const newOrder = await prisma.order.create({
         data: {
           buyerId: userId,
-          sellerId: firstProduct.producerId,
+          sellerId: firstProd.producerId,
           orderStatus: 'PENDING',
+          totalAmount: 0, // will be calculated below (optional – you can sum here)
           orderItems: {
             create: items.map(it => ({
-              productId: Number(it.productId),
-              quantityOrdered: Number(it.quantity)
+              productListingId: it.productId, // note: column name is productListingId in DB
+              quantityOrdered: Number(it.quantity),
+              // pricePerUnitAtOrder and subtotal could be filled here if you want
             }))
           }
         },
         include: {
           orderItems: {
             include: {
-              product: {
+              productListing: {
                 select: {
                   id: true,
                   title: true,
@@ -149,11 +154,12 @@ module.exports = async (req, res) => {
               }
             }
           },
-          buyer:  true,
+          buyer: true,
           seller: true
         }
       });
 
+      // You could also recalc totalAmount = sum(item.quantity * product.price) … but not required for UI.
       return json(res, { data: newOrder }, 201);
     } catch (e) {
       console.error('[orders POST]', e);
@@ -161,13 +167,13 @@ module.exports = async (req, res) => {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // 3️⃣ PATCH /api/orders/:id   → seller confirms order
-  // -------------------------------------------------------------------------
+  // -----------------------------------------------------------------
+  // 3️⃣ PATCH /api/orders/:id  → seller confirms order
+  // -----------------------------------------------------------------
   if (req.method === 'PATCH' && req.url.match(/^\/api\/orders\/[^/]+$/)) {
-    const orderId = req.url.split('/').pop(); // string
+    const orderId = req.url.split('/').pop();
 
-    // ---- parse JSON body ----------------------------------------------------
+    // ---- Parse request JSON body ------------------------------------
     let body;
     try {
       body = await new Promise((resolve, reject) => {
@@ -180,9 +186,9 @@ module.exports = async (req, res) => {
       return json(res, { error: 'Invalid JSON body' }, 400);
     }
 
-    // Only the **seller** (or an ADMIN) may change status
+    // Only the seller (or an ADMIN) may change status
     const order = await prisma.order.findUnique({
-      where: { id: Number(orderId) },
+      where: { id: orderId },
       select: { sellerId: true }
     });
     if (!order) return json(res, { error: 'Order not found' }, 404);
@@ -190,23 +196,27 @@ module.exports = async (req, res) => {
       return json(res, { error: 'Not authorized' }, 403);
     }
 
-    // Currently the UI only ever sends { orderStatus: "CONFIRMED" }
     const newStatus = body.orderStatus;
     if (!newStatus) return json(res, { error: 'orderStatus required' }, 400);
 
     try {
       const updated = await prisma.order.update({
-        where: { id: Number(orderId) },
+        where: { id: orderId },
         data: { orderStatus: newStatus },
         include: {
           orderItems: {
             include: {
-              product: {
-                select: { id: true, title: true, pricePerUnit: true, unitOfMeasure: true }
+              productListing: {
+                select: {
+                  id: true,
+                  title: true,
+                  pricePerUnit: true,
+                  unitOfMeasure: true
+                }
               }
             }
           },
-          buyer:  true,
+          buyer: true,
           seller: true
         }
       });
@@ -217,8 +227,8 @@ module.exports = async (req, res) => {
     }
   }
 
-  // -------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   // Anything else → 405 Method Not Allowed
-  // -------------------------------------------------------------------------
+  // -----------------------------------------------------------------
   return json(res, { error: 'Method not allowed' }, 405);
 };
