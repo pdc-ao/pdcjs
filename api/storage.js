@@ -7,13 +7,13 @@
 // ----------------------------------------------------------------
 // All responses are JSON: { data: … } (or { error: … } on failure)
 // ----------------------------------------------------------------
-// This file is called by the catch‑all `api/[...slug].js`,
-// therefore it still counts as ONE serverless function.
+// This file is executed via the catch‑all `api/[...slug].js`,
+// so it still counts as ONE serverless function.
 // ===============================================================
 
-const prisma = require('../lib/prisma');          // adjust if lib folder lives elsewhere
+const prisma = require('../lib/prisma');          // adjust path if your lib folder lives elsewhere
 const { verifyToken } = require('../lib/jwt');
-require('dotenv').config();                       // loads DB URL, JWT secret, …
+require('dotenv').config();                       // loads PRISMA_DATABASE_URL, JWT secret, etc.
 
 // ---------- Tiny JSON helper ----------
 function json(res, payload, status = 200) {
@@ -26,7 +26,7 @@ function json(res, payload, status = 200) {
 // Main exported handler – Vercel calls it with (req, res)
 // -----------------------------------------------------------------
 module.exports = async (req, res) => {
-  // ---------- CORS (catch‑all already adds it, but we keep it safe) ----------
+  // ---------- CORS (outer catch‑all already adds it, but we keep it safe) ----------
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
   const userId = payload.userId;   // same field used by the rest of the API
 
   // -----------------------------------------------------------------
-  // 2️⃣ GET /api/storage → list all storage listings (no pagination for now)
+  // 2️⃣ GET /api/storage → list all storage listings (no pagination for demo)
   // -----------------------------------------------------------------
   if (req.method === 'GET' && req.url.startsWith('/api/storage')) {
     try {
@@ -92,7 +92,7 @@ module.exports = async (req, res) => {
       return json(res, { error: 'Invalid JSON body' }, 400);
     }
 
-    // ---- Basic validation (feel free to extend) ----------------------------
+    // ---- Required fields ----------------------------------------------------
     const required = [
       'facilityName',
       'storageType',
@@ -104,31 +104,34 @@ module.exports = async (req, res) => {
     }
 
     // ---- Build the data object for Prisma -----------------------------------
+    // Only include a field if it has a non‑empty value (undefined = not sent)
     const data = {
-      // Required / always‑present fields
       ownerId: userId,
       facilityName: body.facilityName,
       storageType: body.storageType,
       totalCapacity: Number(body.totalCapacity) || 0,
       availabilityStatus: body.availabilityStatus,
 
-      // Optional fields – we only add them if they have a truthy value.
-      // Prisma will ignore `undefined`, so the DB default (or null) is kept.
+      // Optional fields – keep only those that exist in your schema
       capacityUnit: body.capacityUnit?.trim() || undefined,
       availableCapacity: body.availableCapacity
         ? Number(body.availableCapacity)
         : undefined,
+
       description: body.description?.trim() || '',
       addressLine1: body.addressLine1?.trim() || '',
-      addressLine2: body.addressLine2?.trim() || '',
+      // ---- addressLine2 exists in the schema, but if you never send it
+      //      you can keep it undefined – Prisma will ignore it.
+      addressLine2: body.addressLine2?.trim() || undefined,
+
       city: body.city?.trim() || '',
       postalCode: body.postalCode?.trim() || '',
       pricingStructure: body.pricingStructure?.trim() || '',
       // -----------------------------------------------------------------
-      // Latitude / Longitude – the schema marks these as required, but
-      // we don’t have a UI for them, so we fall back to 0.
-      // If your schema uses `locationLatitude` / `locationLongitude` rename
-      // the keys accordingly.
+      // Latitude / Longitude – the schema marks these as optional.
+      // If you do not have them in the UI we just store 0 (or omit the field).
+      // Change the key names to `locationLatitude` / `locationLongitude`
+      // if your schema uses those names instead of plain `latitude`.
       // -----------------------------------------------------------------
       latitude: body.latitude ? Number(body.latitude) : 0,
       longitude: body.longitude ? Number(body.longitude) : 0
@@ -146,8 +149,7 @@ module.exports = async (req, res) => {
       return json(res, { data: newListing }, 201);
     } catch (e) {
       console.error('[storage POST]', e);
-      // Prisma unique‑constraint (P2002) or other validation errors can be
-      // turned into more friendly messages if you wish.
+      // Prisma unique‑constraint (P2002) or other validation errors:
       if (e.code === 'P2002') {
         return json(res, { error: 'Duplicate entry' }, 409);
       }
