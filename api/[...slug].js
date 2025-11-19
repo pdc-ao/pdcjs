@@ -98,8 +98,10 @@ function matchPattern(patternSegments, requestSegments) {
 // 2️⃣ Resolve the correct handler file
 // -------------------------------------------------
 function resolveHandler(segments) {
-  // 1️⃣ Look in the **new** api folder first (same rules you already had)
-  const apiRoot = path.join(__dirname);
+  // -------------------------------------------------
+  // 1️⃣  Look in the *new* api folder first (the same rules you already had)
+  // -------------------------------------------------
+  const apiRoot = path.join(__dirname);   // <-- this is the physical folder api/
   const tryCandidates = [];
 
   // -----------------------------------------------------------------
@@ -121,39 +123,53 @@ function resolveHandler(segments) {
   } else if (first === 'orders') {
     tryCandidates.push(path.join(apiRoot, 'orders', 'index.js'));
   } else {
-    // generic attempts
+    // generic attempts (e.g. /messages → api/messages/index.js)
     tryCandidates.push(path.join(apiRoot, `${first}.js`));
     tryCandidates.push(path.join(apiRoot, first, 'index.js'));
   }
 
+  // If any of the candidates exist we are done – this is the fastest path.
   for (const p of tryCandidates) {
     if (fs.existsSync(p)) return { file: p, params: {} };
   }
 
   // -------------------------------------------------
-  // 2️⃣ If nothing in api/, fall back to archived‑api (the old code)
+  // 2️⃣  Fall‑back to external folders (archived‑api *or* the new handlers folder)
   // -------------------------------------------------
-  const archivedRoot = path.join(__dirname, '..', 'archived-api');
-  const allJs = getAllJsFiles(archivedRoot);
+  // Add every base you want the resolver to search here.
+  const externalBases = [
+    // Legacy fallback that already existed
+    path.join(__dirname, '..', 'archived-api'),
 
-  // We'll try to match the *most specific* file first.
-  // Sort by pattern length descending (longer = more specific)
-  const sorted = allJs.sort((a, b) => {
-    const aSeg = pathToPattern(a, archivedRoot).length;
-    const bSeg = pathToPattern(b, archivedRoot).length;
-    return bSeg - aSeg;
-  });
+    // 👉 NEW: the folder where you moved *all* real handlers
+    //    (you can rename it to whatever you like – just keep the same path here)
+    path.join(__dirname, '..', 'src', 'api-handlers')
+  ];
 
-  for (const filePath of sorted) {
-    const pattern = pathToPattern(filePath, archivedRoot);
-    const { matched, params } = matchPattern(pattern, segments);
-    if (matched) {
-      return { file: filePath, params };
+  // Walk **each** external base, collect every .js file, and try to match it.
+  for (const base of externalBases) {
+    // Build a flat list of every .js file under this base (cached on first use)
+    const allJs = getAllJsFiles(base);
+
+    // Sort so the most‑specific pattern wins (longer path = more specific)
+    const sorted = allJs.sort((a, b) => {
+      const aLen = pathToPattern(a, base).length;
+      const bLen = pathToPattern(b, base).length;
+      return bLen - aLen;           // descending
+    });
+
+    // Try each file – the first match wins
+    for (const filePath of sorted) {
+      const pattern = pathToPattern(filePath, base); // e.g. ['messages', 'index']
+      const { matched, params } = matchPattern(pattern, segments);
+      if (matched) {
+        return { file: filePath, params };
+      }
     }
   }
 
   // -------------------------------------------------
-  // 3️⃣ Nothing found
+  // 3️⃣ Nothing matched → let the caller return a 404
   // -------------------------------------------------
   return null;
 }
