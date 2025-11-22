@@ -4,93 +4,310 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — Serviços & Agendamentos</title>
+
+  <!-- Your global stylesheet -->
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- ---------------------------------------------------------
+       Page‑specific styling (sidebar, table, modal, etc.)
+       --------------------------------------------------------- -->
   <style>
-    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
-    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
-    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
-    .main { margin-left:240px; padding:20px; }
-    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
-    th { background: #f9fafb; font-weight: 600; }
-    .btn-sm { font-size: 14px; padding: 4px 8px; margin-right: 4px; }
+    .sidebar {
+      width: 220px;
+      background: #fff;
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      padding: 20px;
+    }
+    .sidebar a {
+      display: block;
+      padding: 8px;
+      margin-bottom: 6px;
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 6px;
+    }
+    .sidebar a.active,
+    .sidebar a:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .main {
+      margin-left: 240px;
+      padding: 20px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th,
+    td {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+    }
+    .btn-sm {
+      font-size: 14px;
+      padding: 4px 8px;
+      margin-right: 4px;
+    }
+
+    /* ----- Modal --------------------------------------------------- */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal.hidden {
+      display: none;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 420px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, .2);
+    }
+    .modal-content h3 {
+      margin-top: 0;
+    }
+    .modal-content label {
+      display: block;
+      margin-top: 12px;
+      font-weight: 500;
+    }
+    .modal-content input,
+    .modal-content textarea,
+    .modal-content select {
+      width: 100%;
+      padding: 6px 8px;
+      margin-top: 4px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .modal-actions {
+      margin-top: 16px;
+      text-align: right;
+    }
   </style>
 </head>
+
 <body>
-<div class="sidebar">
-  <h2>AgriConnect</h2>
-  <a href="dashboard.html">📊 Dashboard</a>
-  <a href="dashboard-products.html">📦 Produtos</a>
-  <a href="dashboard-orders.html">🛒 Pedidos</a>
-  <a href="dashboard-storage.html">🏭 Armazenamento</a>
-  <a href="dashboard-transport.html">🚚 Transporte</a>
-  <a href="dashboard-transformation.html">⚙️ Transformação</a>
-  <a href="dashboard-messages.html">💬 Mensagens</a>
-  <a href="dashboard-reviews.html">⭐ Avaliações</a>
-  <a href="dashboard-wallet.html">💳 Pagamentos</a>
-  <a href="dashboard-notifications.html">🔔 Notificações</a>
-  <a href="dashboard-admin.html">🛠️ Admin</a>
-  <a href="dashboard-procurement.html">📥 Procurement</a>
-  <a href="dashboard-offerings.html" class="active">🎁 Ofertas</a>
-  <a href="dashboard-facilities.html">🏗️ Instalações</a>
-  <a href="dashboard-production.html">🧪 Produção</a>
-  <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
-  <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
-  <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
-  <a href="auth.html" id="logoutBtn">🚪 Sair</a>
-  <a href="upload-documents.html">📑 Enviar Documentos</a>
-</div>
-
-<div class="main">
-  <h1>Serviços & Agendamentos</h1>
-  <p id="userInfo">Carregando sessão...</p>
-
-  <div class="card">
-    <h2>Meus Serviços</h2>
-    <table>
-      <thead>
-        <tr><th>Título</th><th>Descrição</th><th>Status</th><th>Ações</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Consultoria Agrícola</td>
-          <td>Suporte técnico para produtores</td>
-          <td>Ativo</td>
-          <td>
-            <button class="btn btn-sm btn-outline">Editar</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <button class="btn btn-primary">Adicionar Novo Serviço</button>
+  <!-- --------------------- Sidebar --------------------- -->
+  <div class="sidebar">
+    <h2>AgriConnect</h2>
+    <a href="dashboard.html">📊 Dashboard</a>
+    <a href="dashboard-products.html">📦 Produtos</a>
+    <a href="dashboard-orders.html">🛒 Pedidos</a>
+    <a href="dashboard-storage.html">🏭 Armazenamento</a>
+    <a href="dashboard-transport.html">🚚 Transporte</a>
+    <a href="dashboard-transformation.html">⚙️ Transformação</a>
+    <a href="dashboard-messages.html">💬 Mensagens</a>
+    <a href="dashboard-reviews.html">⭐ Avaliações</a>
+    <a href="dashboard-wallet.html">💳 Pagamentos</a>
+    <a href="dashboard-notifications.html">🔔 Notificações</a>
+    <a href="dashboard-admin.html">🛠️ Admin</a>
+    <a href="dashboard-procurement.html">📥 Procurement</a>
+    <a href="dashboard-offerings.html" class="active">🎁 Ofertas</a>
+    <a href="dashboard-facilities.html">🏗️ Instalações</a>
+    <a href="dashboard-production.html">🧪 Produção</a>
+    <a href="dashboard-consumer.html">🧍‍♂️ Consumidor</a>
+    <a href="dashboard-producer.html">🧑‍🌾 Produtor</a>
+    <a href="dashboard-storage-owner.html">📦 Proprietário de Armazém</a>
+    <a href="auth.html" id="logoutBtn">🚪 Sair</a>
+    <a href="upload-documents.html">📑 Enviar Documentos</a>
   </div>
 
-  <div class="card">
-    <h2>Agendamentos</h2>
-    <ul>
-      <li>📅 2025-11-05 — Consultoria com João — Status: Confirmado</li>
-      <li>📅 2025-11-10 — Treinamento com Ana — Status: Pendente</li>
-    </ul>
+  <!-- --------------------- Main content --------------------- -->
+  <div class="main">
+    <h1>Serviços & Agendamentos</h1>
+    <p id="userInfo">Carregando sessão...</p>
+
+    <!-- ------- Meus Serviços (table) ------- -->
+    <div class="card">
+      <h2>Meus Serviços</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Título</th>
+            <th>Descrição</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="servicesTbody">
+          <!-- Existing rows (if any) are inserted here -->
+          <tr>
+            <td>Consultoria Agrícola</td>
+            <td>Suporte técnico para produtores</td>
+            <td>Ativo</td>
+            <td>
+              <button class="btn btn-sm btn-outline">Editar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- The button we will bind to – **NOTE the id** -->
+      <button id="addServiceBtn" class="btn btn-primary" style="margin-top:12px;">
+        Adicionar Novo Serviço
+      </button>
+    </div>
+
+    <!-- ------- Agendamentos (list) ------- -->
+    <div class="card">
+      <h2>Agendamentos</h2>
+      <ul>
+        <li>📅 2025-11-05 — Consultoria com João — Status: Confirmado</li>
+        <li>📅 2025-11-10 — Treinamento com Ana — Status: Pendente</li>
+      </ul>
+    </div>
   </div>
-</div>
 
-<script>
-  const user = JSON.parse(localStorage.getItem('pdc_user_data'));
-  const userInfo = document.getElementById('userInfo');
+  <!-- ======== Modal – hidden by default ======== -->
+  <div id="addServiceModal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Adicionar Novo Serviço</h3>
 
-  if (!user) {
-    userInfo.innerHTML = 'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
-  } else {
-    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
-  }
+      <form id="addServiceForm">
+        <label>
+          Título
+          <input type="text" name="title" required />
+        </label>
 
-  document.getElementById('logoutBtn').addEventListener('click', (e) => {
-    e.preventDefault();
-    localStorage.removeItem('pdc_user_data');
-    localStorage.removeItem('pdc_auth_token');
-    location.href = 'auth.html';
-  });
-</script>
+        <label>
+          Descrição
+          <textarea name="description" rows="4" required></textarea>
+        </label>
+
+        <label>
+          Status
+          <select name="status">
+            <option value="Ativo">Ativo</option>
+            <option value="Inativo">Inativo</option>
+          </select>
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" id="closeModalBtn" class="btn btn-outline">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== Scripts ==================== -->
+  <script>
+    // ---------- 1️⃣ USER INFO ----------
+    const userInfo = document.getElementById('userInfo');
+    const user = JSON.parse(localStorage.getItem('pdc_user_data'));
+
+    if (!user) {
+      userInfo.innerHTML =
+        'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
+    } else {
+      userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+    }
+
+    // ---------- 2️⃣ LOGOUT ----------
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.removeItem('pdc_user_data');
+      localStorage.removeItem('pdc_auth_token');
+      location.href = 'auth.html';
+    });
+
+    // ---------- 3️⃣ MODAL HANDLERS ----------
+    const addBtn   = document.getElementById('addServiceBtn');
+    const modal    = document.getElementById('addServiceModal');
+    const closeBtn = document.getElementById('closeModalBtn');
+    const form     = document.getElementById('addServiceForm');
+    const tbody    = document.getElementById('servicesTbody');
+
+    // open modal
+    addBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+
+    // close modal
+    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+
+    // ---------- 4️⃣ FORM SUBMIT ----------
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // collect data from the form
+      const payload = {
+        title:       form.title.value.trim(),
+        description: form.description.value.trim(),
+        status:      form.status.value
+      };
+
+      if (!payload.title || !payload.description) {
+        return alert('Preencha todos os campos.');
+      }
+
+      try {
+        const token = localStorage.getItem('pdc_auth_token'); // optional – if you protect the route
+        const resp = await fetch('/api/offers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` })
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await resp.json();
+
+        if (!resp.ok) {
+          throw new Error(result.error || 'Erro ao criar oferta');
+        }
+
+        // 5️⃣ Append the new row to the table (prepend so newest is on top)
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${result.title}</td>
+          <td>${result.description}</td>
+          <td>${result.status}</td>
+          <td><button class="btn btn-sm btn-outline">Editar</button></td>
+        `;
+        tbody.prepend(tr);
+
+        // clean up UI
+        modal.classList.add('hidden');
+        form.reset();
+      } catch (err) {
+        console.error(err);
+        alert(err.message);
+      }
+    });
+  </script>
 </body>
 </html>
