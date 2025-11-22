@@ -6,15 +6,20 @@
   <title>Dashboard — Produção</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    .sidebar { width: 220px; background: #fff; border-right: 1px solid var(--border); position: fixed; top:0; bottom:0; left:0; padding:20px; }
-    .sidebar a { display:block; padding:8px; margin-bottom:6px; color:var(--muted); text-decoration:none; border-radius:6px; }
-    .sidebar a.active, .sidebar a:hover { background: var(--accent); color:#fff; }
-    .main { margin-left:240px; padding:20px; }
-    .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
-    th { background: #f9fafb; font-weight: 600; }
-    .btn-sm { font-size: 14px; padding: 4px 8px; margin-right: 4px; }
+    .sidebar{width:220px;background:#fff;border-right:1px solid var(--border);position:fixed;top:0;bottom:0;left:0;padding:20px;}
+    .sidebar a{display:block;padding:8px;margin-bottom:6px;color:var(--muted);text-decoration:none;border-radius:6px;}
+    .sidebar a.active,.sidebar a:hover{background:var(--accent);color:#fff;}
+    .main{margin-left:240px;padding:20px;}
+    .card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;}
+    table{width:100%;border-collapse:collapse;margin-top:10px;}
+    th,td{padding:8px 12px;border:1px solid var(--border);text-align:left;}
+    th{background:#f9fafb;font-weight:600;}
+    .btn-sm{font-size:14px;padding:4px 8px;margin-right:4px;}
+    /* ---------- Modal ---------- */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:1000;}
+    .modal.hidden{display:none;}
+    .modal-content{background:#fff;padding:20px;border-radius:8px;width:90%;max-width:460px;box-shadow:0 2px 10px rgba(0,0,0,.2);}
+    .modal-actions{margin-top:12px;text-align:right;}
   </style>
 </head>
 <body>
@@ -46,25 +51,25 @@
   <h1>Planos de Produção</h1>
   <p id="userInfo">Carregando sessão...</p>
 
+  <!-- ---------- Table of plans ---------- -->
   <div class="card">
     <h2>Meus Planos</h2>
     <table>
       <thead>
-        <tr><th>Produto</th><th>Área</th><th>Status</th><th>Colheita Estimada</th><th>Ações</th></tr>
-      </thead>
-      <tbody>
         <tr>
-          <td>Milho</td>
-          <td>2 hectares</td>
-          <td>Crescendo</td>
-          <td>2025-12-10</td>
-          <td><button class="btn btn-sm btn-outline">Ver</button></td>
+          <th>Produto</th><th>Área</th><th>Status</th><th>Colheita Estimada</th><th>Ações</th>
         </tr>
+      </thead>
+      <tbody id="plansBody">
+        <tr><td colspan="5">Carregando…</td></tr>
       </tbody>
     </table>
-    <button class="btn btn-primary">Criar Novo Plano</button>
+    <button id="openCreateModal" class="btn btn-primary" style="margin-top:12px;">
+      Criar Novo Plano
+    </button>
   </div>
 
+  <!-- ---------- Updates list (static for now) ---------- -->
   <div class="card">
     <h2>Atualizações & Marcos</h2>
     <ul>
@@ -74,22 +79,219 @@
   </div>
 </div>
 
-<script>
-  const user = JSON.parse(localStorage.getItem('pdc_user_data'));
-  const userInfo = document.getElementById('userInfo');
+<!-- ---------- Modal – Create / Edit ---------- -->
+<div id="planModal" class="modal hidden">
+  <div class="modal-content">
+    <h3 id="modalTitle">Criar Plano</h3>
+    <form id="planForm">
+      <label>Produto<br>
+        <input type="text" name="productName" required />
+      </label>
+      <label>Área (ex.: 2)<br>
+        <input type="number" name="areaSize" step="0.01" required />
+      </label>
+      <label>Unidade da Área<br>
+        <select name="areaUnit" required>
+          <option value="hectares">hectares</option>
+          <option value="acres">acres</option>
+          <option value="m²">m²</option>
+        </select>
+      </label>
+      <label>Status<br>
+        <select name="status" required>
+          <option value="PLANNED">Planejado</option>
+          <option value="IN_PREPARATION">Em preparação</option>
+          <option value="GROWING">Crescendo</option>
+          <option value="READY_TO_HARVEST">Pronto para colheita</option>
+          <option value="HARVESTED">Colhido</option>
+          <option value="CANCELLED">Cancelado</option>
+        </select>
+      </label>
+      <label>Data Estimada de Colheita (opcional)<br>
+        <input type="date" name="estimatedHarvestDate" />
+      </label>
 
-  if (!user) {
-    userInfo.innerHTML = 'Nenhuma sessão encontrada. <a href="auth.html">Entrar</a>';
-  } else {
-    userInfo.textContent = `${user.name || user.email} — ${user.role}`;
+      <div class="modal-actions">
+        <button type="button" id="closeModalBtn" class="btn btn-outline">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="container">© <span id="yearProd"></span> AgriConnect Angola</div>
+</footer>
+
+<script src="js/app.js"></script>
+<script type="module">
+  import { getSession, logout, renderUserInfo } from './js/dashboard.js';
+
+  const token = localStorage.getItem('pdc_auth_token');
+  const user = getSession();               // returns the parsed user object or null
+  renderUserInfo('#userInfo');
+
+  document.getElementById('logoutBtn').addEventListener('click', e => {
+    e.preventDefault();
+    logout();
+  });
+
+  // ---------- Footer year ----------
+  document.getElementById('yearProd').innerText = new Date().getFullYear();
+
+  // ---------- Modal handling ----------
+  const modal      = document.getElementById('planModal');
+  const openBtn    = document.getElementById('openCreateModal');
+  const closeBtn   = document.getElementById('closeModalBtn');
+  const form       = document.getElementById('planForm');
+  const modalTitle = document.getElementById('modalTitle');
+  let editingId = null;   // when we are editing an existing plan
+
+  openBtn.addEventListener('click', () => {
+    editingId = null;
+    modalTitle.textContent = 'Criar Plano';
+    form.reset();
+    modal.classList.remove('hidden');
+  });
+
+  closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+
+  // ---------- Submit (create or edit) ----------
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const fd = new FormData(form);
+    const payload = {
+      productName: fd.get('productName').trim(),
+      areaSize: fd.get('areaSize'),
+      areaUnit: fd.get('areaUnit'),
+      status: fd.get('status'),
+      estimatedHarvestDate: fd.get('estimatedHarvestDate') || undefined,
+    };
+
+    // Simple client‑side validation
+    if (!payload.productName || !payload.areaSize || !payload.areaUnit) {
+      return alert('Preencha os campos obrigatórios');
+    }
+
+    const method = editingId ? 'PATCH' : 'POST';
+    const url    = editingId ? `/api/production/${editingId}` : '/api/production';
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro no servidor');
+      }
+
+      // Success → refresh the table and close modal
+      await loadPlans();
+      modal.classList.add('hidden');
+    } catch (err) {
+      console.error(err);
+      alert('Erro: ' + err.message);
+    }
+  });
+
+  // ---------- Load & render plans ----------
+  const tbody = document.getElementById('plansBody');
+
+  async function loadPlans() {
+    if (!user) {
+      tbody.innerHTML = '<tr><td colspan="5">Faça login para ver planos.</td></tr>';
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/production?producerId=${encodeURIComponent(user.id)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Falha ao buscar planos');
+      const plans = await res.json();
+
+      if (!plans || plans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">Nenhum plano encontrado.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = '';
+      plans.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(p.productName)}</td>
+          <td>${escapeHtml(p.areaSize)} ${escapeHtml(p.areaUnit)}</td>
+          <td>${escapeHtml(p.status)}</td>
+          <td>${p.estimatedHarvestDate || '-'}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="startEdit('${p.id}')">Editar</button>
+            <button class="btn btn-sm btn-outline" onclick="deletePlan('${p.id}')">Excluir</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="5">Erro ao carregar planos.</td></tr>';
+    }
   }
 
-  document.getElementById('logoutBtn').addEventListener('click', (e) => {
-    e.preventDefault();
-    localStorage.removeItem('pdc_user_data');
-    localStorage.removeItem('pdc_auth_token');
-    location.href = 'auth.html';
-  });
+  // ---------- Delete ----------
+  async function deletePlan(id) {
+    if (!confirm('Tem certeza que deseja excluir este plano?')) return;
+    try {
+      const res = await fetch(`/api/production/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Falha ao excluir');
+      alert('Plano excluído');
+      await loadPlans();
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir plano');
+    }
+  }
+
+  // ---------- Edit ----------
+  async function startEdit(id) {
+    // fetch the single plan (we could reuse the list data, but this is simpler)
+    try {
+      const res = await fetch(`/api/production?producerId=${encodeURIComponent(user.id)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const plans = await res.json();
+      const plan = plans.find(p => p.id === id);
+      if (!plan) throw new Error('Plano não encontrado');
+
+      editingId = id;
+      modalTitle.textContent = 'Editar Plano';
+      // pre‑fill the form
+      form.productName.value = plan.productName;
+      form.areaSize.value = plan.areaSize;
+      form.areaUnit.value = plan.areaUnit;
+      form.status.value = plan.status;
+      form.estimatedHarvestDate.value = plan.estimatedHarvestDate || '';
+      modal.classList.remove('hidden');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao iniciar edição');
+    }
+  }
+
+  // expose the two functions to the inline `onclick` handlers
+  window.deletePlan = deletePlan;
+  window.startEdit = startEdit;
+
+  // ---------- Initial load ----------
+  loadPlans();
 </script>
 </body>
 </html>
