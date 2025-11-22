@@ -1,109 +1,128 @@
 // ---------------------------------------------------------------------------
-// api/offers.js
+// api/offers.js – Offers (Serviços) API
 // ---------------------------------------------------------------------------
-// Handles POST /api/offers  – creates a new Offering for the logged‑in user.
+// Endpoints:
+//   POST /api/offers → create a new offering (service)
+//   GET  /api/offers → list all offerings (not required for the button,
+//                     but kept for completeness)
 // ---------------------------------------------------------------------------
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-/**
- * Helper – read the whole request body and JSON‑parse it.
- * (Exactly the same code you used in the old file; kept here to stay self‑contained.)
- */
-function parseJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let raw = '';
-    req.on('data', (chunk) => (raw += chunk));
-    req.on('end', () => {
-      if (!raw) return resolve({});
-      try {
-        resolve(JSON.parse(raw));
-      } catch (e) {
-        reject(e);
-      }
-    });
-    req.on('error', reject);
-  });
+const { verifyToken } = require('../lib/jwt');   // same as other APIs
+require('dotenv').config();                      // loads JWT secret, DB URL, etc.
+
+// ----------------------- tiny JSON helper (exactly like transformation.js) -----------------------
+function json(res, payload, status = 200) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(payload));
 }
 
-/**
- * POST handler – called by the catch‑all wrapper.
- * The wrapper passes (req, res, params) and expects either:
- *   • nothing (handler wrote the response itself) or
- *   • a plain object/value (wrapper will JSON‑stringify it).
- */
-async function POST(req, res) {
+// ---------------------------------------------------------------------------
+// Main exported handler – Vercel calls it with (req, res)
+// ---------------------------------------------------------------------------
+module.exports = async (req, res) => {
   // -------------------------------------------------
-  // 1️⃣  Parse body
+  // CORS (already added by the global catch‑all, but keep it for safety)
   // -------------------------------------------------
-  let body;
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') return res.end();
+
+  // -------------------------------------------------
+  // 1️⃣ Authenticate – same logic used in transformation.js
+  // -------------------------------------------------
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+  if (!token) return json(res, { error: 'Missing token' }, 401);
+
+  let payload;
   try {
-    body = await parseJsonBody(req);
+    payload = verifyToken(token);
   } catch (e) {
-    // Bad JSON → 400
-    res.statusCode = 400;
-    return { error: 'Invalid JSON payload' };
+    return json(res, { error: 'Invalid token' }, 401);
+  }
+  const userId = payload.userId;   // <-- will become the `ownerId` of the offering
+
+  // -------------------------------------------------
+  // 2️⃣ POST /api/offers → create a new offering
+  // -------------------------------------------------
+  if (req.method === 'POST' && req.url === '/api/offers') {
+    // ---- Parse JSON body ----------------------------------------------------
+    let body;
+    try {
+      body = await new Promise((resolve, reject) => {
+        let raw = '';
+        req.on('data', (chunk) => (raw += chunk));
+        req.on('end', () => {
+          try {
+            resolve(raw ? JSON.parse(raw) : {});
+          } catch (e) {
+            reject(e);
+          }
+        });
+        req.on('error', reject);
+      });
+    } catch {
+      return json(res, { error: 'Invalid JSON body' }, 400);
+    }
+
+    // ---- Validate required fields --------------------------------------------
+    const { title, description, status } = body;
+    if (!title || !description) {
+      return json(res, { error: 'title & description are required' }, 400);
+    }
+
+    // ---- Map UI `status` (string) → DB field(s) --------------------------------
+    // The `Offering` model only has `title`, `description`, `ownerId`.
+    // If you want to keep the UI status you can store it in a JSON column
+    // called `metadata` (add it later).  For now we just ignore it.
+    // (If you later add a `status` column, replace the line below with the proper field.)
+
+    try {
+      const newOffering = await prisma.offering.create({
+        data: {
+          title,
+          description,
+          ownerId: userId,
+          // optional: metadata: { status: status ?? 'Ativo' }
+        },
+      });
+
+      // -------------------------------------------------
+      // 3️⃣ Success – return the created record (201)
+      // -------------------------------------------------
+      return json(res, newOffering, 201);
+    } catch (e) {
+      console.error('[api/offers] DB error →', e);
+      // Prisma duplicate key → 409, otherwise 500
+      if (e.code === 'P2002') return json(res, { error: 'Duplicate entry' }, 409);
+      return json(res, { error: 'Server error while creating offering' }, 500);
+    }
   }
 
-  const { title, description, status } = body;
-
   // -------------------------------------------------
-  // 2️⃣  Basic validation
+  // 4️⃣ GET /api/offers → list all (optional, helpful for debugging)
   // -------------------------------------------------
-  if (!title || !description) {
-    res.statusCode = 400;
-    return { error: 'title and description are required' };
-  }
-
-  // The Offering model does **not** have an enum for status,
-  // you can store any string you like (e.g. "Ativo" / "Inativo").
-  const safeStatus = status?.trim() ? status.trim() : 'Ativo';
-
-  // -------------------------------------------------
-  // 3️⃣  Identify the user that is creating the offering.
-  // -------------------------------------------------
-  // You said you already have a JWT stored in localStorage
-  // (pdc_auth_token).  If you protect this endpoint you can
-  // decode it here.  For the sake of a quick demo we’ll just
-  // read the user‑id from a custom header “x-user-id”.
-  const userId = req.headers['x-user-id']; // <-- adjust to your auth logic
-
-  if (!userId) {
-    res.statusCode = 401;
-    return { error: 'Unauthenticated – missing user id' };
+  if (req.method === 'GET' && req.url === '/api/offers') {
+    try {
+      const all = await prisma.offering.findMany({
+        select: { id: true, title: true, description: true, ownerId: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      return json(res, { data: all });
+    } catch (e) {
+      console.error('[api/offers] GET error →', e);
+      return json(res, { error: 'Server error while fetching offerings' }, 500);
+    }
   }
 
   // -------------------------------------------------
-  // 4️⃣  Persist with Prisma
+  // Anything else → 405 Method Not Allowed
   // -------------------------------------------------
-  try {
-    const newOffering = await prisma.offering.create({
-      data: {
-        title,
-        description,
-        // we keep the column name exactly as in the schema
-        // (status column does NOT exist – you can store it in description,
-        // or add a new column later.  For now we’ll save it in a JSON field
-        // called `metadata` if you want to keep it.)
-        ownerId: userId,
-        // OPTIONAL: if you want to keep the status you can add a JSON column
-        // `metadata: { status: safeStatus }` – omit if you don’t have it.
-      },
-    });
-
-    // -------------------------------------------------
-    // 5️⃣  Return the created record
-    // -------------------------------------------------
-    // Setting the status here makes the wrapper send 201 instead of 200.
-    res.statusCode = 201;
-    return newOffering;
-  } catch (e) {
-    console.error('[api/offers] DB error →', e);
-    res.statusCode = 500;
-    return { error: 'Database error while creating the offering' };
-  }
-}
-
-// Export the verb map – the catch‑all will look for `POST`.
-module.exports = { POST };
+  return json(res, { error: 'Method not allowed' }, 405);
+};
