@@ -1,3 +1,10 @@
+// ================================================================
+// api/products/index.js – Product Listing API
+// ---------------------------------------------------------------
+// GET  → list products (optional search, pagination, **producerId** filter)
+// POST → create a new product (restricted to ADMIN / PRODUCER)
+// ================================================================
+
 const prisma = require('../../lib/prisma');
 const { verifyToken } = require('../../lib/jwt');
 
@@ -5,9 +12,18 @@ require('dotenv').config();
 
 module.exports = async (req, res) => {
   try {
+    // -----------------------------------------------------------------
+    // 1️⃣ GET – list products (public, optional auth for search)
+    // -----------------------------------------------------------------
     if (req.method === 'GET') {
-      const { page = 1, limit = 20, q } = req.query;
+      const {
+        page = 1,
+        limit = 20,
+        q,
+        producerId,                // ← NEW – filter by owner when supplied
+      } = req.query;
 
+      // ---- Optional auth (allows private search) --------------------
       const auth = req.headers.authorization || '';
       const token = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null;
       let payload = null;
@@ -15,20 +31,28 @@ module.exports = async (req, res) => {
         try {
           payload = verifyToken(token);
         } catch {
-          // ignore invalid token for GET
+          // ignore an invalid token – we still serve public rows
         }
       }
 
-      const where =
-        payload && q
-          ? {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { description: { contains: q, mode: 'insensitive' } },
-              ],
-            }
-          : {};
+      // ---- Build the Prisma `where` clause -------------------------
+      // Search text (only when we have a valid token – same as before)
+      const searchWhere = payload && q
+        ? {
+            OR: [
+              { title: { contains: q, mode: 'insensitive' } },
+              { description: { contains: q, mode: 'insensitive' } },
+            ],
+          }
+        : {};
 
+      // NEW – if a producerId is supplied we narrow the results to that user
+      const producerWhere = producerId ? { producerId } : {};
+
+      // Merge both objects (empty objects are harmless)
+      const where = { ...searchWhere, ...producerWhere };
+
+      // ---- Execute the query ----------------------------------------
       const products = await prisma.productListing.findMany({
         where,
         take: Number(limit),
@@ -36,9 +60,13 @@ module.exports = async (req, res) => {
         orderBy: { createdAt: 'desc' },
       });
 
+      // Keep the exact shape the UI expects
       return res.json({ data: products });
     }
 
+    // -----------------------------------------------------------------
+    // 2️⃣ POST – create a new product (auth‑required)
+    // -----------------------------------------------------------------
     if (req.method === 'POST') {
       const auth = req.headers.authorization || '';
       const token = auth.startsWith('Bearer ') ? auth.split(' ')[1] : null;
@@ -60,7 +88,7 @@ module.exports = async (req, res) => {
         description,
         unit = 'kg',
         category = 'general',
-        status = 'Active'
+        status = 'Active',
       } = req.body || {};
 
       const price = Number(req.body.price);
@@ -78,14 +106,17 @@ module.exports = async (req, res) => {
           pricePerUnit: price,
           quantityAvailable: quantity,
           unitOfMeasure: unit,
-          producerId: payload.userId,
-          status
+          producerId: payload.userId,   // ← owner of the listing
+          status,
         },
       });
 
       return res.status(201).json({ data: product });
     }
 
+    // -----------------------------------------------------------------
+    // Anything else → 405 Method Not Allowed
+    // -----------------------------------------------------------------
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('[PRODUCTS API]', err);
