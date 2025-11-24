@@ -1,23 +1,28 @@
-// api/[...slug].js
-// --------------------------------------------------------------
-// A single catch‑all Vercel Function that resolves *any* API
-// route, including the historic "archived‑api" files that have
-// unconventional names like src_app_api_*_route.js.
-// --------------------------------------------------------------
+// ---------------------------------------------------------------
+// api/[...slug].js – single catch‑all Vercel Function
+// ---------------------------------------------------------------
+// It resolves ANY request (/api/*) to a handler that lives **outside**
+// the api folder (e.g. archived‑api/, src/api‑handlers/, …)
+// This keeps the Hobby‑plan limit to ONE function.
+// ---------------------------------------------------------------
 
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
-const url = require('url');
+const url  = require('url');
 
-// ------- 1️⃣ Helpers -------------------------------------------------
+// -------------------------------------------------
+// 1️⃣ Tiny helpers (exactly the same shape you used before)
+// -------------------------------------------------
 function sendJson(res, payload, status = 200) {
+  // If the response was already sent, do nothing – prevents
+  // “ERR_HTTP_HEADERS_SENT”.
+  if (res.headersSent) return;
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
 }
 
-// CORS – Vercel static assets call the API from the same origin,
-// but we still need to answer pre‑flight requests.
+// CORS – needed for static assets that call the API from the same origin
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
@@ -30,11 +35,13 @@ function setCors(res) {
   );
 }
 
-// Parse body to JSON (used by both CommonJS & ESM handlers)
+// -------------------------------------------------
+// 2️⃣ Body parser (used by legacy handlers)
+// -------------------------------------------------
 function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
-    req.on('data', (chunk) => (raw += chunk));
+    req.on('data', chunk => (raw += chunk));
     req.on('end', () => {
       if (!raw) return resolve({});
       try {
@@ -47,47 +54,38 @@ function parseJsonBody(req) {
   });
 }
 
-// Build a list of *all* .js files under a directory (cached at cold start)
+// -------------------------------------------------
+// 3️⃣ Helpers that walk the external folders and match patterns
+// -------------------------------------------------
 let cachedFileList = null;
 function getAllJsFiles(baseDir) {
   if (cachedFileList) return cachedFileList;
-  const walk = (dir) => {
+  const walk = dir => {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const files = [];
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        files.push(...walk(full));
-      } else if (entry.isFile() && entry.name.endsWith('.js')) {
-        files.push(full);
-      }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) files.push(...walk(full));
+      else if (e.isFile() && e.name.endsWith('.js')) files.push(full);
     }
     return files;
   };
   cachedFileList = walk(baseDir);
   return cachedFileList;
 }
-
-// Turn a filesystem path into a pattern array (e.g. "payments/transactions/[id]/events.js")
 function pathToPattern(fullPath, rootDir) {
-  const rel = path.relative(rootDir, fullPath); // e.g. "payments/transactions/[id]/events.js"
-  const withoutExt = rel.replace(/\.js$/i, '');
-  return withoutExt.split(path.sep); // array of segments
+  const rel = path.relative(rootDir, fullPath).replace(/\.js$/i, '');
+  return rel.split(path.sep);
 }
-
-// Try to match request segments against a pattern.
-// Returns { matched: true, params: {...} } or { matched: false }
-function matchPattern(patternSegments, requestSegments) {
-  if (patternSegments.length !== requestSegments.length) return { matched: false };
+function matchPattern(pattern, segments) {
+  if (pattern.length !== segments.length) return { matched: false };
   const params = {};
-  for (let i = 0; i < patternSegments.length; i++) {
-    const pat = patternSegments[i];
-    const seg = requestSegments[i];
-    if (pat.startsWith('[') && pat.endsWith(']')) {
-      // wildcard – store without brackets
-      const key = pat.slice(1, -1);
-      params[key] = seg;
-    } else if (pat !== seg) {
+  for (let i = 0; i < pattern.length; i++) {
+    const p = pattern[i];
+    const s = segments[i];
+    if (p.startsWith('[') && p.endsWith(']')) {
+      params[p.slice(1, -1)] = s;
+    } else if (p !== s) {
       return { matched: false };
     }
   }
@@ -95,20 +93,13 @@ function matchPattern(patternSegments, requestSegments) {
 }
 
 // -------------------------------------------------
-// 2️⃣ Resolve the correct handler file
+// 4️⃣ Resolve the correct JS file (new api folder first, then external folders)
 // -------------------------------------------------
 function resolveHandler(segments) {
-  // -------------------------------------------------
-  // 1️⃣  Look in the *new* api folder first (the same rules you already had)
-  // -------------------------------------------------
-  const apiRoot = path.join(__dirname);   // <-- this is the physical folder api/
+  const apiRoot = path.join(__dirname); // physical folder api/
   const tryCandidates = [];
 
-  // -----------------------------------------------------------------
-  // a) Direct file: api/<first>.js
-  // b) Folder + index.js: api/<first>/index.js
-  // c) Special mapping for products, auth, orders (kept from your original code)
-  // -----------------------------------------------------------------
+  // ---- fast path – new‑api files that already sit in /api/ ----
   const first = segments[0] || '';
   if (first === 'products') {
     if (segments.length === 2) {
@@ -117,146 +108,113 @@ function resolveHandler(segments) {
       tryCandidates.push(path.join(apiRoot, 'products', 'index.js'));
     }
   } else if (first === 'auth') {
-    if (segments[1]) {
-      tryCandidates.push(path.join(apiRoot, 'auth', `${segments[1]}.js`));
-    }
+    if (segments[1]) tryCandidates.push(path.join(apiRoot, 'auth', `${segments[1]}.js`));
   } else if (first === 'orders') {
     tryCandidates.push(path.join(apiRoot, 'orders', 'index.js'));
   } else {
-    // generic attempts (e.g. /messages → api/messages/index.js)
+    // generic: <first>.js  or  <first>/index.js
     tryCandidates.push(path.join(apiRoot, `${first}.js`));
     tryCandidates.push(path.join(apiRoot, first, 'index.js'));
   }
 
-  // If any of the candidates exist we are done – this is the fastest path.
-  for (const p of tryCandidates) {
-    if (fs.existsSync(p)) return { file: p, params: {} };
-  }
+  for (const p of tryCandidates) if (fs.existsSync(p)) return { file: p, params: {} };
 
-  // -------------------------------------------------
-  // 2️⃣  Fall‑back to external folders (archived‑api *or* the new handlers folder)
-  // -------------------------------------------------
-  // Add every base you want the resolver to search here.
+  // ---- fallback – look in external folders (archived‑api, src‑handlers, etc.) ----
   const externalBases = [
-    // Legacy fallback that already existed
-    path.join(__dirname, '..', 'archived-api'),
-
-    // 👉 NEW: the folder where you moved *all* real handlers
-    //    (you can rename it to whatever you like – just keep the same path here)
-    path.join(__dirname, '..', 'src', 'api-handlers')
+    path.join(__dirname, '..', 'archived-api'),      // ← your historic folder
+    // Add more external roots here if you create a new folder for fresh handlers
+    // path.join(__dirname, '..', 'src', 'api-handlers')
   ];
 
-  // Walk **each** external base, collect every .js file, and try to match it.
   for (const base of externalBases) {
-    // Build a flat list of every .js file under this base (cached on first use)
     const allJs = getAllJsFiles(base);
-
-    // Sort so the most‑specific pattern wins (longer path = more specific)
     const sorted = allJs.sort((a, b) => {
-      const aLen = pathToPattern(a, base).length;
-      const bLen = pathToPattern(b, base).length;
-      return bLen - aLen;           // descending
+      const al = pathToPattern(a, base).length;
+      const bl = pathToPattern(b, base).length;
+      return bl - al; // longest (most specific) first
     });
 
-    // Try each file – the first match wins
     for (const filePath of sorted) {
-      const pattern = pathToPattern(filePath, base); // e.g. ['messages', 'index']
+      const pattern = pathToPattern(filePath, base);
       const { matched, params } = matchPattern(pattern, segments);
-      if (matched) {
-        return { file: filePath, params };
-      }
+      if (matched) return { file: filePath, params };
     }
   }
 
-  // -------------------------------------------------
-  // 3️⃣ Nothing matched → let the caller return a 404
-  // -------------------------------------------------
+  // nothing matched → 404
   return null;
 }
 
 // -------------------------------------------------
-// 3️⃣ Execute a handler (CommonJS or ESM)
+// 5️⃣ Execute the exported handler (CommonJS or ESM)
 // -------------------------------------------------
 async function executeHandler(mod, req, res, params) {
-  // Attach params to the request object (the original code expected `req._slugArray`, we add `req.params` as well)
+  // keep the original compatibility
   req.params = params || {};
 
-  // 1️⃣ If the module itself is a function (CommonJS default export)
-  if (typeof mod === 'function') {
-    return mod(req, res);
-  }
-  if (mod && typeof mod.default === 'function') {
-    return mod.default(req, res);
-  }
+  // 1️⃣ module itself is a function (default export)
+  if (typeof mod === 'function') return mod(req, res);
+  if (mod && typeof mod.default === 'function') return mod.default(req, res);
 
-  // 2️⃣ If the module exports verb‑specific functions (GET, POST, …)
+  // 2️⃣ verb‑specific exports (GET, POST, …)
   const method = req.method.toUpperCase();
-  if (mod && typeof mod[method] === 'function') {
-    return mod[method](req, res);
-  }
+  if (mod && typeof mod[method] === 'function') return mod[method](req, res);
 
-  // 3️⃣ If the module exports an object with a `handler` field (some older files do this)
-  if (mod && typeof mod.handler === 'function') {
-    return mod.handler(req, res);
-  }
+  // 3️⃣ object with a `handler` field
+  if (mod && typeof mod.handler === 'function') return mod.handler(req, res);
 
-  // If we get here, we don’t know how to call the module.
+  // nothing we can call
   return null;
 }
 
 // -------------------------------------------------
-// 4️⃣ Main exported Vercel handler
+// 6️⃣ Main exported Vercel handler
 // -------------------------------------------------
 module.exports = async function (req, res) {
-  // ----------- CORS & OPTIONS -------------
+  // ----- CORS & pre‑flight -----
   setCors(res);
-  if (req.method === 'OPTIONS') {
-    return res.statusCode = 200, res.end();
-  }
+  if (req.method === 'OPTIONS') return (res.statusCode = 200), res.end();
 
-  // ----------- Parse URL ------------------
-  const parsed = url.parse(req.url || '');
-  const cleanPath = (parsed.pathname || '').replace(/^\/api\/?/, '').replace(/^\/+/, '');
-  const segments = cleanPath ? cleanPath.split('/').filter(Boolean) : [];
+  // ----- Resolve URL -----
+  const parsed   = url.parse(req.url || '');
+  const clean    = (parsed.pathname || '').replace(/^\/api\/?/, '').replace(/^\/+/, '');
+  const segments = clean ? clean.split('/').filter(Boolean) : [];
 
-  // Store original slug (kept for backward compatibility with some old handlers)
+  // keep old compatibility (some old code used _slugArray)
   req._slugArray = segments;
 
-  // ----------- Resolve handler -------------
+  // ----- Find the handler file -----
   const resolved = resolveHandler(segments);
-  if (!resolved) {
-    return sendJson(res, { error: 'Not found' }, 404);
-  }
+  if (!resolved) return sendJson(res, { error: 'Not found' }, 404);
 
   const { file: handlerPath, params } = resolved;
 
   try {
-    // ----------- Load the module -----------
-    // Prefer CommonJS `require` (fast) – fallback to dynamic `import` for ESM files.
+    // ----- Load the module (CommonJS first, fallback to ESM) -----
     let mod;
     try {
       mod = require(handlerPath);
     } catch (e) {
-      // If require fails because the file is ESM, use import()
+      // ESM file → dynamic import
       mod = await import(handlerPath);
     }
 
-    // ----------- Execute it -----------------
+    // ----- Run the handler -----
     const result = await executeHandler(mod, req, res, params);
-    if (result !== null && result !== undefined) {
-      // handler already wrote to `res`
-      return;
-    }
 
-    // If handler returned something that is plain JSON, send it.
-    if (typeof result === 'object') {
+    // If the handler already wrote a response, stop here.
+    if (res.headersSent) return;
+
+    // If the handler returned a plain object/array, send it as JSON.
+    if (result !== null && result !== undefined && typeof result === 'object') {
       return sendJson(res, result);
     }
 
-    // If we reach here, the handler didn't respond.
+    // No response & no payload → internal error (helps debugging)
     return sendJson(res, { error: 'Handler did not send a response' }, 500);
   } catch (err) {
     console.error('[API error] path:', handlerPath, err);
-    return sendJson(res, { error: err.message || 'Internal server error' }, 500);
+    // Guard against double‑send – if the handler already wrote something we don't touch it.
+    if (!res.headersSent) return sendJson(res, { error: err.message || 'Internal server error' }, 500);
   }
 };
