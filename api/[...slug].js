@@ -5,6 +5,7 @@
 //   the /api folder (archived‑api/, src/... etc.).
 // * Parses JSON bodies and adds tiny Express‑style shims
 //   (res.status, res.json) so legacy handlers keep working.
+// * Handles folder‑index routes (e.g. /api/products → archived‑api/products/index.js).
 // * Protects against double‑sending (res.headersSent).
 // * Keeps the Hobby‑plan limit: ONLY THIS file lives in /api.
 // =============================================================
@@ -17,9 +18,7 @@ const url  = require('url');
 // 1️⃣ Tiny JSON helper (same as every other API file)
 // -------------------------------------------------
 function json(res, payload, status = 200) {
-  // If the response was already sent, just ignore – prevents
-  // “ERR_HTTP_HEADERS_SENT”.
-  if (res.headersSent) return;
+  if (res.headersSent) return;                 // guard against double‑send
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
@@ -101,9 +100,9 @@ function matchPattern(pattern, segs) {
 // 5️⃣ Resolve the correct handler file
 // -------------------------------------------------
 function resolveHandler(segments) {
-  const apiRoot = path.join(__dirname); // /api folder (where this file lives)
+  const apiRoot = path.join(__dirname); // physical /api folder
 
-  // ---------- fast‑path – files that already sit inside /api ----------
+  // ---------- fast‑path – files already inside /api ----------
   const first = segments[0] || '';
   const tryCandidates = [];
 
@@ -125,10 +124,10 @@ function resolveHandler(segments) {
 
   for (const p of tryCandidates) if (fs.existsSync(p)) return { file: p, params: {} };
 
-  // ---------- fallback – look in external folders (archived‑api, etc.) ----------
+  // ---------- fallback – look in external folders ----------
   const externalBases = [
-    path.join(__dirname, '..', 'archived-api'), // ← your historic folder
-    // Add more roots here if you create a new “handlers” folder, e.g.
+    path.join(__dirname, '..', 'archived-api'), // <-- your historic folder
+    // If you later create another folder (e.g. src/api-handlers) add it here
     // path.join(__dirname, '..', 'src', 'api-handlers')
   ];
 
@@ -143,8 +142,18 @@ function resolveHandler(segments) {
 
     for (const filePath of sorted) {
       const pattern = pathToPattern(filePath, base);
-      const { matched, params } = matchPattern(pattern, segments);
-      if (matched) return { file: filePath, params };
+
+      // ---- 1️⃣ Direct match (exact length) ----
+      let match = matchPattern(pattern, segments);
+      if (match.matched) return { file: filePath, params: match.params };
+
+      // ---- 2️⃣ Folder‑index match (e.g. products/index.js) ----
+      // If the pattern ends with "index" we also try the pattern *without* that segment.
+      if (pattern[pattern.length - 1] === 'index') {
+        const trimmed = pattern.slice(0, -1);               // drop the final "index"
+        match = matchPattern(trimmed, segments);
+        if (match.matched) return { file: filePath, params: match.params };
+      }
     }
   }
 
@@ -196,22 +205,19 @@ module.exports = async function (req, res) {
     try {
       req.body = await parseJsonBody(req);
     } catch (e) {
-      // malformed JSON
       return json(res, { error: 'Invalid JSON body' }, 400);
     }
   }
 
   // ----------- Tiny Express‑style shims ----------
-  // Some old handlers do `res.status(...).json(...)`.
   if (typeof res.status !== 'function') {
     res.status = function (code) {
       this.statusCode = code;
-      return this; // allow chaining
+      return this;               // chainable
     };
   }
   if (typeof res.json !== 'function') {
     res.json = function (payload) {
-      // if a previous handler already ended the response, just ignore
       return json(this, payload, this.statusCode || 200);
     };
   }
