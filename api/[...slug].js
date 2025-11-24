@@ -1,28 +1,33 @@
-// ---------------------------------------------------------------
-// api/[...slug].js – single catch‑all Vercel Function
-// ---------------------------------------------------------------
-// It resolves ANY request (/api/*) to a handler that lives **outside**
-// the api folder (e.g. archived‑api/, src/api‑handlers/, …)
-// This keeps the Hobby‑plan limit to ONE function.
-// ---------------------------------------------------------------
+// =============================================================
+// api/[...slug].js – ONE catch‑all Vercel Function
+// -------------------------------------------------------------
+//  * Resolves any /api/* request to a handler that lives
+//    **outside** the /api folder (archived‑api/, src/…, etc.).
+//  * Parses JSON bodies and adds tiny Express‑style shims
+//    (res.status, res.json) so legacy handlers keep working.
+//  * Makes sure we never try to send a second response
+//    (prevents ERR_HTTP_HEADERS_SENT).
+//  * Keeps the Hobby‑plan limit: ONLY THIS file is inside /api.
+// =============================================================
 
 const fs   = require('fs');
 const path = require('path');
 const url  = require('url');
 
 // -------------------------------------------------
-// 1️⃣ Tiny helpers (exactly the same shape you used before)
+// 1️⃣ Tiny JSON helper (same as all other API files)
 // -------------------------------------------------
-function sendJson(res, payload, status = 200) {
-  // If the response was already sent, do nothing – prevents
-  // “ERR_HTTP_HEADERS_SENT”.
+function json(res, payload, status = 200) {
+  // If a response has already been sent, just ignore.
   if (res.headersSent) return;
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
 }
 
-// CORS – needed for static assets that call the API from the same origin
+// -------------------------------------------------
+// 2️⃣ CORS helper (required for front‑end calls)
+// -------------------------------------------------
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
@@ -36,7 +41,7 @@ function setCors(res) {
 }
 
 // -------------------------------------------------
-// 2️⃣ Body parser (used by legacy handlers)
+// 3️⃣ Parse a JSON body (used by legacy handlers)
 // -------------------------------------------------
 function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -55,7 +60,7 @@ function parseJsonBody(req) {
 }
 
 // -------------------------------------------------
-// 3️⃣ Helpers that walk the external folders and match patterns
+// 4️⃣ Helpers that walk external folders & match patterns
 // -------------------------------------------------
 let cachedFileList = null;
 function getAllJsFiles(baseDir) {
@@ -77,12 +82,12 @@ function pathToPattern(fullPath, rootDir) {
   const rel = path.relative(rootDir, fullPath).replace(/\.js$/i, '');
   return rel.split(path.sep);
 }
-function matchPattern(pattern, segments) {
-  if (pattern.length !== segments.length) return { matched: false };
+function matchPattern(pattern, segs) {
+  if (pattern.length !== segs.length) return { matched: false };
   const params = {};
   for (let i = 0; i < pattern.length; i++) {
     const p = pattern[i];
-    const s = segments[i];
+    const s = segs[i];
     if (p.startsWith('[') && p.endsWith(']')) {
       params[p.slice(1, -1)] = s;
     } else if (p !== s) {
@@ -93,13 +98,13 @@ function matchPattern(pattern, segments) {
 }
 
 // -------------------------------------------------
-// 4️⃣ Resolve the correct JS file (new api folder first, then external folders)
+// 5️⃣ Resolve the correct handler file
 // -------------------------------------------------
 function resolveHandler(segments) {
-  const apiRoot = path.join(__dirname); // physical folder api/
+  const apiRoot = path.join(__dirname); // physical /api folder
   const tryCandidates = [];
 
-  // ---- fast path – new‑api files that already sit in /api/ ----
+  // ------- fast path – files that already sit inside /api (if you ever add any) -------
   const first = segments[0] || '';
   if (first === 'products') {
     if (segments.length === 2) {
@@ -119,19 +124,20 @@ function resolveHandler(segments) {
 
   for (const p of tryCandidates) if (fs.existsSync(p)) return { file: p, params: {} };
 
-  // ---- fallback – look in external folders (archived‑api, src‑handlers, etc.) ----
+  // ------- fallback – look in external folders (archived‑api, etc.) -------
   const externalBases = [
-    path.join(__dirname, '..', 'archived-api'),      // ← your historic folder
-    // Add more external roots here if you create a new folder for fresh handlers
+    path.join(__dirname, '..', 'archived-api'), // <-- your historic folder
+    // add more roots here if you create a new handlers folder
     // path.join(__dirname, '..', 'src', 'api-handlers')
   ];
 
   for (const base of externalBases) {
     const allJs = getAllJsFiles(base);
+    // longest (most specific) pattern first
     const sorted = allJs.sort((a, b) => {
       const al = pathToPattern(a, base).length;
       const bl = pathToPattern(b, base).length;
-      return bl - al; // longest (most specific) first
+      return bl - al;
     });
 
     for (const filePath of sorted) {
@@ -146,10 +152,10 @@ function resolveHandler(segments) {
 }
 
 // -------------------------------------------------
-// 5️⃣ Execute the exported handler (CommonJS or ESM)
+// 6️⃣ Execute a handler (CommonJS or ESM)
 // -------------------------------------------------
 async function executeHandler(mod, req, res, params) {
-  // keep the original compatibility
+  // keep the original API compatibility
   req.params = params || {};
 
   // 1️⃣ module itself is a function (default export)
@@ -168,53 +174,81 @@ async function executeHandler(mod, req, res, params) {
 }
 
 // -------------------------------------------------
-// 6️⃣ Main exported Vercel handler
+// 7️⃣ Main exported Vercel handler
 // -------------------------------------------------
 module.exports = async function (req, res) {
-  // ----- CORS & pre‑flight -----
+  // ---------- CORS & pre‑flight ----------
   setCors(res);
   if (req.method === 'OPTIONS') return (res.statusCode = 200), res.end();
 
-  // ----- Resolve URL -----
+  // ---------- Parse URL ----------
   const parsed   = url.parse(req.url || '');
-  const clean    = (parsed.pathname || '').replace(/^\/api\/?/, '').replace(/^\/+/, '');
+  const clean    = (parsed.pathname || '')
+    .replace(/^\/api\/?/, '')
+    .replace(/^\/+/, '');
   const segments = clean ? clean.split('/').filter(Boolean) : [];
 
-  // keep old compatibility (some old code used _slugArray)
+  // keep old compatibility for legacy code that used _slugArray
   req._slugArray = segments;
 
-  // ----- Find the handler file -----
+  // ---------- Body parsing for JSON POST/PUT/PATCH ----------
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    try {
+      req.body = await parseJsonBody(req);
+    } catch (e) {
+      // malformed JSON
+      return json(res, { error: 'Invalid JSON body' }, 400);
+    }
+  }
+
+  // ---------- Tiny Express‑style shims ----------
+  // Some of the old handlers do `res.status(...).json(...)`.
+  // We add the two methods only if they don't already exist.
+  if (typeof res.status !== 'function') {
+    res.status = function (code) {
+      this.statusCode = code;
+      return this; // allow chaining
+    };
+  }
+  if (typeof res.json !== 'function') {
+    res.json = function (payload) {
+      // If the handler already called `res.end()` we skip.
+      return json(this, payload, this.statusCode || 200);
+    };
+  }
+
+  // ---------- Resolve handler ----------
   const resolved = resolveHandler(segments);
-  if (!resolved) return sendJson(res, { error: 'Not found' }, 404);
+  if (!resolved) return json(res, { error: 'Not found' }, 404);
 
   const { file: handlerPath, params } = resolved;
 
   try {
-    // ----- Load the module (CommonJS first, fallback to ESM) -----
+    // ---------- Load the module ----------
     let mod;
     try {
-      mod = require(handlerPath);
+      mod = require(handlerPath); // CommonJS (fast)
     } catch (e) {
-      // ESM file → dynamic import
+      // If it is an ES‑module, fall back to dynamic import
       mod = await import(handlerPath);
     }
 
-    // ----- Run the handler -----
+    // ---------- Execute ----------
     const result = await executeHandler(mod, req, res, params);
 
-    // If the handler already wrote a response, stop here.
+    // If the handler already sent a response, stop here.
     if (res.headersSent) return;
 
     // If the handler returned a plain object/array, send it as JSON.
     if (result !== null && result !== undefined && typeof result === 'object') {
-      return sendJson(res, result);
+      return json(res, result);
     }
 
     // No response & no payload → internal error (helps debugging)
-    return sendJson(res, { error: 'Handler did not send a response' }, 500);
+    return json(res, { error: 'Handler did not send a response' }, 500);
   } catch (err) {
     console.error('[API error] path:', handlerPath, err);
-    // Guard against double‑send – if the handler already wrote something we don't touch it.
-    if (!res.headersSent) return sendJson(res, { error: err.message || 'Internal server error' }, 500);
+    // Guard against double‑send
+    if (!res.headersSent) return json(res, { error: err.message || 'Internal server error' }, 500);
   }
 };
