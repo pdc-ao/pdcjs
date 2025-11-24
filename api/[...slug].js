@@ -1,13 +1,12 @@
 // =============================================================
 // api/[...slug].js – ONE catch‑all Vercel Function
 // -------------------------------------------------------------
-//  * Resolves any /api/* request to a handler that lives
-//    **outside** the /api folder (archived‑api/, src/…, etc.).
-//  * Parses JSON bodies and adds tiny Express‑style shims
-//    (res.status, res.json) so legacy handlers keep working.
-//  * Makes sure we never try to send a second response
-//    (prevents ERR_HTTP_HEADERS_SENT).
-//  * Keeps the Hobby‑plan limit: ONLY THIS file is inside /api.
+// * Resolves any /api/* request to a handler that lives **outside**
+//   the /api folder (archived‑api/, src/... etc.).
+// * Parses JSON bodies and adds tiny Express‑style shims
+//   (res.status, res.json) so legacy handlers keep working.
+// * Protects against double‑sending (res.headersSent).
+// * Keeps the Hobby‑plan limit: ONLY THIS file lives in /api.
 // =============================================================
 
 const fs   = require('fs');
@@ -15,10 +14,11 @@ const path = require('path');
 const url  = require('url');
 
 // -------------------------------------------------
-// 1️⃣ Tiny JSON helper (same as all other API files)
+// 1️⃣ Tiny JSON helper (same as every other API file)
 // -------------------------------------------------
 function json(res, payload, status = 200) {
-  // If a response has already been sent, just ignore.
+  // If the response was already sent, just ignore – prevents
+  // “ERR_HTTP_HEADERS_SENT”.
   if (res.headersSent) return;
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
@@ -101,11 +101,12 @@ function matchPattern(pattern, segs) {
 // 5️⃣ Resolve the correct handler file
 // -------------------------------------------------
 function resolveHandler(segments) {
-  const apiRoot = path.join(__dirname); // physical /api folder
+  const apiRoot = path.join(__dirname); // /api folder (where this file lives)
+
+  // ---------- fast‑path – files that already sit inside /api ----------
+  const first = segments[0] || '';
   const tryCandidates = [];
 
-  // ------- fast path – files that already sit inside /api (if you ever add any) -------
-  const first = segments[0] || '';
   if (first === 'products') {
     if (segments.length === 2) {
       tryCandidates.push(path.join(apiRoot, 'products', '[id].js'));
@@ -124,10 +125,10 @@ function resolveHandler(segments) {
 
   for (const p of tryCandidates) if (fs.existsSync(p)) return { file: p, params: {} };
 
-  // ------- fallback – look in external folders (archived‑api, etc.) -------
+  // ---------- fallback – look in external folders (archived‑api, etc.) ----------
   const externalBases = [
-    path.join(__dirname, '..', 'archived-api'), // <-- your historic folder
-    // add more roots here if you create a new handlers folder
+    path.join(__dirname, '..', 'archived-api'), // ← your historic folder
+    // Add more roots here if you create a new “handlers” folder, e.g.
     // path.join(__dirname, '..', 'src', 'api-handlers')
   ];
 
@@ -155,7 +156,6 @@ function resolveHandler(segments) {
 // 6️⃣ Execute a handler (CommonJS or ESM)
 // -------------------------------------------------
 async function executeHandler(mod, req, res, params) {
-  // keep the original API compatibility
   req.params = params || {};
 
   // 1️⃣ module itself is a function (default export)
@@ -177,11 +177,11 @@ async function executeHandler(mod, req, res, params) {
 // 7️⃣ Main exported Vercel handler
 // -------------------------------------------------
 module.exports = async function (req, res) {
-  // ---------- CORS & pre‑flight ----------
+  // ----------- CORS & pre‑flight ------------
   setCors(res);
   if (req.method === 'OPTIONS') return (res.statusCode = 200), res.end();
 
-  // ---------- Parse URL ----------
+  // ----------- Parse URL ----------
   const parsed   = url.parse(req.url || '');
   const clean    = (parsed.pathname || '')
     .replace(/^\/api\/?/, '')
@@ -191,7 +191,7 @@ module.exports = async function (req, res) {
   // keep old compatibility for legacy code that used _slugArray
   req._slugArray = segments;
 
-  // ---------- Body parsing for JSON POST/PUT/PATCH ----------
+  // ----------- Body parsing for JSON (POST/PUT/PATCH) ----------
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
     try {
       req.body = await parseJsonBody(req);
@@ -201,9 +201,8 @@ module.exports = async function (req, res) {
     }
   }
 
-  // ---------- Tiny Express‑style shims ----------
-  // Some of the old handlers do `res.status(...).json(...)`.
-  // We add the two methods only if they don't already exist.
+  // ----------- Tiny Express‑style shims ----------
+  // Some old handlers do `res.status(...).json(...)`.
   if (typeof res.status !== 'function') {
     res.status = function (code) {
       this.statusCode = code;
@@ -212,28 +211,28 @@ module.exports = async function (req, res) {
   }
   if (typeof res.json !== 'function') {
     res.json = function (payload) {
-      // If the handler already called `res.end()` we skip.
+      // if a previous handler already ended the response, just ignore
       return json(this, payload, this.statusCode || 200);
     };
   }
 
-  // ---------- Resolve handler ----------
+  // ----------- Resolve the handler ----------
   const resolved = resolveHandler(segments);
   if (!resolved) return json(res, { error: 'Not found' }, 404);
 
   const { file: handlerPath, params } = resolved;
 
   try {
-    // ---------- Load the module ----------
+    // ----------- Load the module (CommonJS preferred) ----------
     let mod;
     try {
-      mod = require(handlerPath); // CommonJS (fast)
+      mod = require(handlerPath); // fast sync require
     } catch (e) {
-      // If it is an ES‑module, fall back to dynamic import
+      // If the file is an ES‑module fall back to dynamic import
       mod = await import(handlerPath);
     }
 
-    // ---------- Execute ----------
+    // ----------- Execute ----------
     const result = await executeHandler(mod, req, res, params);
 
     // If the handler already sent a response, stop here.
