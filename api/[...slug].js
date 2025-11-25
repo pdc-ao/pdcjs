@@ -18,7 +18,7 @@ const url  = require('url');
 // 1️⃣ Tiny JSON helper (same as every other API file)
 // ------------------------------------------------------------------
 function json(res, payload, status = 200) {
-  if (res.headersSent) return;                      // guard against double‑send
+  if (res.headersSent) return;                // guard against double‑send
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
@@ -58,7 +58,6 @@ function parseJsonBody(req) {
 let cachedFileList = null;
 function getAllJsFiles(baseDir) {
   if (cachedFileList) return cachedFileList;
-
   const walk = dir => {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const files = [];
@@ -69,7 +68,6 @@ function getAllJsFiles(baseDir) {
     }
     return files;
   };
-
   cachedFileList = walk(baseDir);
   return cachedFileList;
 }
@@ -86,7 +84,7 @@ function matchPattern(pattern, segs) {
     const p = pattern[i];
     const s = segs[i];
     if (p.startsWith('[') && p.endsWith(']')) {
-      params[p.slice(1, -1)] = s;          // capture dynamic segment
+      params[p.slice(1, -1)] = s;          // dynamic segment → param
     } else if (p !== s) {
       return { matched: false };
     }
@@ -104,7 +102,6 @@ function resolveHandler(segments) {
   const first = segments[0] || '';
   const tryCandidates = [];
 
-  // keep the generic fast‑path (still useful for a few built‑in files)
   if (first) {
     tryCandidates.push(path.join(apiRoot, `${first}.js`));
     tryCandidates.push(path.join(apiRoot, first, 'index.js'));
@@ -114,18 +111,15 @@ function resolveHandler(segments) {
 
   // ---------- fallback – look in external folders ----------
   const externalBases = [
-    // <-- IMPORTANT: use process.cwd() (the repo root) – works both locally
-    //     and inside the Vercel lambda (where __dirname points to the
-    //     `/api/[...slug]` folder).
+    // `process.cwd()` is the repository root when the function runs.
+    // (You could also use: path.resolve(__dirname, '..', '..', 'archived-api'))
     path.resolve(process.cwd(), 'archived-api')
-    // Add more external roots here if you create other handler groups:
-    // path.resolve(process.cwd(), 'src', 'api-handlers')
   ];
 
   for (const base of externalBases) {
     const allJs = getAllJsFiles(base);
 
-    // longest (most specific) pattern first → more precise match wins
+    // longest (most specific) pattern first → ensures the most precise match wins
     const sorted = allJs.sort((a, b) => {
       const al = pathToPattern(a, base).length;
       const bl = pathToPattern(b, base).length;
@@ -141,7 +135,7 @@ function resolveHandler(segments) {
 
       // ---- 2️⃣ Folder‑index match (e.g. products/index.js) ----
       if (pattern[pattern.length - 1] === 'index') {
-        const trimmed = pattern.slice(0, -1); // drop the trailing 'index'
+        const trimmed = pattern.slice(0, -1); // drop the trailing “index”
         match = matchPattern(trimmed, segments);
         if (match.matched) return { file: filePath, params: match.params };
       }
@@ -191,6 +185,10 @@ module.exports = async function (req, res) {
     .replace(/^\/+/, '');
   const segments = clean ? clean.split('/').filter(Boolean) : [];
 
+  // ---- DEBUG – see what the function is receiving ----
+  console.log('[API] request path   :', req.url);
+  console.log('[API] cleaned segments:', segments);
+
   // Legacy compatibility – older handlers used _slugArray
   req._slugArray = segments;
 
@@ -218,6 +216,7 @@ module.exports = async function (req, res) {
 
   // ----------- Resolve the handler ----------
   const resolved = resolveHandler(segments);
+  console.log('[API] resolved ->', resolved);
   if (!resolved) return json(res, { error: 'Not found' }, 404);
 
   const { file: handlerPath, params } = resolved;
