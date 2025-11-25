@@ -18,7 +18,7 @@ const url  = require('url');
 // 1️⃣ Tiny JSON helper (same as every other API file)
 // ------------------------------------------------------------------
 function json(res, payload, status = 200) {
-  if (res.headersSent) return;                // guard against double‑send
+  if (res.headersSent) return;                 // guard against double‑send
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
@@ -71,12 +71,10 @@ function getAllJsFiles(baseDir) {
   cachedFileList = walk(baseDir);
   return cachedFileList;
 }
-
 function pathToPattern(fullPath, rootDir) {
   const rel = path.relative(rootDir, fullPath).replace(/\.js$/i, '');
   return rel.split(path.sep);
 }
-
 function matchPattern(pattern, segs) {
   if (pattern.length !== segs.length) return { matched: false };
   const params = {};
@@ -84,7 +82,7 @@ function matchPattern(pattern, segs) {
     const p = pattern[i];
     const s = segs[i];
     if (p.startsWith('[') && p.endsWith(']')) {
-      params[p.slice(1, -1)] = s;          // dynamic segment → param
+      params[p.slice(1, -1)] = s;
     } else if (p !== s) {
       return { matched: false };
     }
@@ -103,6 +101,7 @@ function resolveHandler(segments) {
   const tryCandidates = [];
 
   if (first) {
+    // generic: <first>.js   or   <first>/index.js
     tryCandidates.push(path.join(apiRoot, `${first}.js`));
     tryCandidates.push(path.join(apiRoot, first, 'index.js'));
   }
@@ -111,15 +110,17 @@ function resolveHandler(segments) {
 
   // ---------- fallback – look in external folders ----------
   const externalBases = [
-    // `process.cwd()` is the repository root when the function runs.
-    // (You could also use: path.resolve(__dirname, '..', '..', 'archived-api'))
+    // **IMPORTANT** – this path is relative to the repo root (the same as the
+    // `includeFiles` glob in vercel.json).  Using `process.cwd()` works both
+    // locally and inside the Vercel lambda.
     path.resolve(process.cwd(), 'archived-api')
+    // Add more external roots here if you ever need them:
+    // path.resolve(process.cwd(), 'src', 'api-handlers')
   ];
 
   for (const base of externalBases) {
     const allJs = getAllJsFiles(base);
-
-    // longest (most specific) pattern first → ensures the most precise match wins
+    // longest (most specific) pattern first
     const sorted = allJs.sort((a, b) => {
       const al = pathToPattern(a, base).length;
       const bl = pathToPattern(b, base).length;
@@ -135,7 +136,7 @@ function resolveHandler(segments) {
 
       // ---- 2️⃣ Folder‑index match (e.g. products/index.js) ----
       if (pattern[pattern.length - 1] === 'index') {
-        const trimmed = pattern.slice(0, -1); // drop the trailing “index”
+        const trimmed = pattern.slice(0, -1);
         match = matchPattern(trimmed, segments);
         if (match.matched) return { file: filePath, params: match.params };
       }
@@ -185,11 +186,11 @@ module.exports = async function (req, res) {
     .replace(/^\/+/, '');
   const segments = clean ? clean.split('/').filter(Boolean) : [];
 
-  // ---- DEBUG – see what the function is receiving ----
+  // DEBUG – printed in the Vercel function logs
   console.log('[API] request path   :', req.url);
   console.log('[API] cleaned segments:', segments);
 
-  // Legacy compatibility – older handlers used _slugArray
+  // keep old compatibility for legacy code that used _slugArray
   req._slugArray = segments;
 
   // ----------- Body parsing for JSON (POST/PUT/PATCH) ----------

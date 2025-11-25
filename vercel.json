@@ -2,7 +2,6 @@
   "outputDirectory": ".",
   "functions": {
     "api/[...slug].js": {
-      // path is relative to the folder that contains the function (api/)
       "includeFiles": "../archived-api/**"
     }
   }
