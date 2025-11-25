@@ -14,7 +14,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "node prisma/seed.js || echo \"No seed script found\"",
-    "lint": "echo \"No lint configured\""
+    "lint": "echo \"No lint configured\"",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.380.0",
