@@ -14,34 +14,28 @@ const fs   = require('fs');
 const path = require('path');
 const url  = require('url');
 
-// -------------------------------------------------
+// ------------------------------------------------------------------
 // 1️⃣ Tiny JSON helper (same as every other API file)
-// -------------------------------------------------
+// ------------------------------------------------------------------
 function json(res, payload, status = 200) {
-  if (res.headersSent) return;                 // guard against double‑send
+  if (res.headersSent) return;                      // guard against double‑send
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
 }
 
-// -------------------------------------------------
+// ------------------------------------------------------------------
 // 2️⃣ CORS helper (required for front‑end calls)
-// -------------------------------------------------
+// ------------------------------------------------------------------
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader(
-    'Access-Control-Allow-Methods',
-    'GET,POST,PUT,DELETE,OPTIONS'
-  );
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Authorization'
-  );
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
-// -------------------------------------------------
+// ------------------------------------------------------------------
 // 3️⃣ Parse a JSON body (used by legacy handlers)
-// -------------------------------------------------
+// ------------------------------------------------------------------
 function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
@@ -58,12 +52,13 @@ function parseJsonBody(req) {
   });
 }
 
-// -------------------------------------------------
+// ------------------------------------------------------------------
 // 4️⃣ Helpers that walk external folders & match patterns
-// -------------------------------------------------
+// ------------------------------------------------------------------
 let cachedFileList = null;
 function getAllJsFiles(baseDir) {
   if (cachedFileList) return cachedFileList;
+
   const walk = dir => {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     const files = [];
@@ -74,13 +69,16 @@ function getAllJsFiles(baseDir) {
     }
     return files;
   };
+
   cachedFileList = walk(baseDir);
   return cachedFileList;
 }
+
 function pathToPattern(fullPath, rootDir) {
   const rel = path.relative(rootDir, fullPath).replace(/\.js$/i, '');
   return rel.split(path.sep);
 }
+
 function matchPattern(pattern, segs) {
   if (pattern.length !== segs.length) return { matched: false };
   const params = {};
@@ -88,7 +86,7 @@ function matchPattern(pattern, segs) {
     const p = pattern[i];
     const s = segs[i];
     if (p.startsWith('[') && p.endsWith(']')) {
-      params[p.slice(1, -1)] = s;
+      params[p.slice(1, -1)] = s;          // capture dynamic segment
     } else if (p !== s) {
       return { matched: false };
     }
@@ -96,9 +94,9 @@ function matchPattern(pattern, segs) {
   return { matched: true, params };
 }
 
-// -------------------------------------------------
+// ------------------------------------------------------------------
 // 5️⃣ Resolve the correct handler file
-// -------------------------------------------------
+// ------------------------------------------------------------------
 function resolveHandler(segments) {
   const apiRoot = path.join(__dirname); // physical /api folder
 
@@ -106,18 +104,8 @@ function resolveHandler(segments) {
   const first = segments[0] || '';
   const tryCandidates = [];
 
-  if (first === 'products') {
-    if (segments.length === 2) {
-      tryCandidates.push(path.join(apiRoot, 'products', '[id].js'));
-    } else {
-      tryCandidates.push(path.join(apiRoot, 'products', 'index.js'));
-    }
-  } else if (first === 'auth') {
-    if (segments[1]) tryCandidates.push(path.join(apiRoot, 'auth', `${segments[1]}.js`));
-  } else if (first === 'orders') {
-    tryCandidates.push(path.join(apiRoot, 'orders', 'index.js'));
-  } else {
-    // generic: <first>.js  or  <first>/index.js
+  // keep the generic fast‑path (still useful for a few built‑in files)
+  if (first) {
     tryCandidates.push(path.join(apiRoot, `${first}.js`));
     tryCandidates.push(path.join(apiRoot, first, 'index.js'));
   }
@@ -126,14 +114,18 @@ function resolveHandler(segments) {
 
   // ---------- fallback – look in external folders ----------
   const externalBases = [
-    path.join(__dirname, '..', 'archived-api'), // <-- your historic folder
-    // If you later create another folder (e.g. src/api-handlers) add it here
-    // path.join(__dirname, '..', 'src', 'api-handlers')
+    // <-- IMPORTANT: use process.cwd() (the repo root) – works both locally
+    //     and inside the Vercel lambda (where __dirname points to the
+    //     `/api/[...slug]` folder).
+    path.resolve(process.cwd(), 'archived-api')
+    // Add more external roots here if you create other handler groups:
+    // path.resolve(process.cwd(), 'src', 'api-handlers')
   ];
 
   for (const base of externalBases) {
     const allJs = getAllJsFiles(base);
-    // longest (most specific) pattern first
+
+    // longest (most specific) pattern first → more precise match wins
     const sorted = allJs.sort((a, b) => {
       const al = pathToPattern(a, base).length;
       const bl = pathToPattern(b, base).length;
@@ -148,9 +140,8 @@ function resolveHandler(segments) {
       if (match.matched) return { file: filePath, params: match.params };
 
       // ---- 2️⃣ Folder‑index match (e.g. products/index.js) ----
-      // If the pattern ends with "index" we also try the pattern *without* that segment.
       if (pattern[pattern.length - 1] === 'index') {
-        const trimmed = pattern.slice(0, -1);               // drop the final "index"
+        const trimmed = pattern.slice(0, -1); // drop the trailing 'index'
         match = matchPattern(trimmed, segments);
         if (match.matched) return { file: filePath, params: match.params };
       }
@@ -161,9 +152,9 @@ function resolveHandler(segments) {
   return null;
 }
 
-// -------------------------------------------------
+// ------------------------------------------------------------------
 // 6️⃣ Execute a handler (CommonJS or ESM)
-// -------------------------------------------------
+// ------------------------------------------------------------------
 async function executeHandler(mod, req, res, params) {
   req.params = params || {};
 
@@ -182,13 +173,16 @@ async function executeHandler(mod, req, res, params) {
   return null;
 }
 
-// -------------------------------------------------
+// ------------------------------------------------------------------
 // 7️⃣ Main exported Vercel handler
-// -------------------------------------------------
+// ------------------------------------------------------------------
 module.exports = async function (req, res) {
   // ----------- CORS & pre‑flight ------------
   setCors(res);
-  if (req.method === 'OPTIONS') return (res.statusCode = 200), res.end();
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 200;
+    return res.end();
+  }
 
   // ----------- Parse URL ----------
   const parsed   = url.parse(req.url || '');
@@ -197,7 +191,7 @@ module.exports = async function (req, res) {
     .replace(/^\/+/, '');
   const segments = clean ? clean.split('/').filter(Boolean) : [];
 
-  // keep old compatibility for legacy code that used _slugArray
+  // Legacy compatibility – older handlers used _slugArray
   req._slugArray = segments;
 
   // ----------- Body parsing for JSON (POST/PUT/PATCH) ----------
@@ -232,7 +226,7 @@ module.exports = async function (req, res) {
     // ----------- Load the module (CommonJS preferred) ----------
     let mod;
     try {
-      mod = require(handlerPath); // fast sync require
+      mod = require(handlerPath);               // fast sync require
     } catch (e) {
       // If the file is an ES‑module fall back to dynamic import
       mod = await import(handlerPath);
