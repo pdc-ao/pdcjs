@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
-const prisma = require('../../../lib/prisma'); // ← corrected
-const { signToken } = require('../../../lib/jwt'); // ← corrected
+const prisma = require('../../lib/prisma'); // ← corrected
+const { signToken } = require('../../lib/jwt'); // ← corrected
 
 require('dotenv').config();
 
