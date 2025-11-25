@@ -101,7 +101,7 @@ function resolveHandler(segments) {
   const tryCandidates = [];
 
   if (first) {
-    // generic: <first>.js   or   <first>/index.js
+    // generic fast‑path: <first>.js  or  <first>/index.js
     tryCandidates.push(path.join(apiRoot, `${first}.js`));
     tryCandidates.push(path.join(apiRoot, first, 'index.js'));
   }
@@ -110,11 +110,9 @@ function resolveHandler(segments) {
 
   // ---------- fallback – look in external folders ----------
   const externalBases = [
-    // **IMPORTANT** – this path is relative to the repo root (the same as the
-    // `includeFiles` glob in vercel.json).  Using `process.cwd()` works both
-    // locally and inside the Vercel lambda.
+    // `process.cwd()` is the repository root both locally and in the Vercel lambda
     path.resolve(process.cwd(), 'archived-api')
-    // Add more external roots here if you ever need them:
+    // Add more external roots later if you wish, e.g.:
     // path.resolve(process.cwd(), 'src', 'api-handlers')
   ];
 
@@ -186,11 +184,11 @@ module.exports = async function (req, res) {
     .replace(/^\/+/, '');
   const segments = clean ? clean.split('/').filter(Boolean) : [];
 
-  // DEBUG – printed in the Vercel function logs
+  // DEBUG – appears in Vercel function logs
   console.log('[API] request path   :', req.url);
   console.log('[API] cleaned segments:', segments);
 
-  // keep old compatibility for legacy code that used _slugArray
+  // keep legacy compatibility (some old handlers used `_slugArray`)
   req._slugArray = segments;
 
   // ----------- Body parsing for JSON (POST/PUT/PATCH) ----------
