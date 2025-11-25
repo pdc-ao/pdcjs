@@ -1,7 +1,10 @@
 {
+  "outputDirectory": ".",
   "functions": {
     "api/[...slug].js": {
-      "includeFiles": "archived-api/**"
+      "includeFiles": [
+        "../archived-api/**"
+      ]
     }
   }
 }
