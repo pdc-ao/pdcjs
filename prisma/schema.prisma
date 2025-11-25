@@ -8,9 +8,9 @@ datasource db {
   // shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// =======================
-// CORE ENUMS
-// =======================
+/* ======================= */
+/* ==== CORE ENUMS ======== */
+/* ======================= */
 
 enum UserRole {
   PRODUCER
@@ -59,9 +59,9 @@ enum BookingStatus {
   CANCELLED
 }
 
-// =======================
-// PRODUCTION ENUMS
-// =======================
+/* =========================== */
+/* ==== PRODUCTION ENUMS ==== */
+/* =========================== */
 
 enum ProductionStatus {
   PLANNED
@@ -122,9 +122,9 @@ enum OrderStatus {
   REFUNDED
 }
 
-// =======================
-// NEW ENRICHMENT ENUMS
-// =======================
+/* ============================= */
+/* ==== ENRICHMENT ENUMS ====== */
+/* ============================= */
 
 enum NotificationChannel {
   EMAIL
@@ -151,7 +151,7 @@ enum TrackingEventType {
   PICKED_UP
   ARRIVED_AT_HUB
   DEPARTED_HUB
-  OUT_FOR_DELIVERY
+  OUT_FOR_DELEVERY
   DELIVERED
   EXCEPTION
 }
@@ -176,16 +176,20 @@ enum SeverityLevel {
   CRITICAL
 }
 
+/* ===================== */
+/* ==== MODELS ======== */
+/* ===================== */
+
 model User {
-  id           String @id @default(uuid())
-  username     String @unique
-  email        String @unique
-  passwordHash String
+  id                 String   @id @default(uuid())
+  username           String   @unique
+  email              String   @unique
+  passwordHash       String
 
-  entityType EntityType @default(INDIVIDUAL)
+  entityType         EntityType @default(INDIVIDUAL)
 
-  fullName    String?
-  dateOfBirth DateTime?
+  fullName           String?
+  dateOfBirth        DateTime?
 
   companyName        String?   @unique
   registrationNumber String?
@@ -193,92 +197,98 @@ model User {
   companyType        String?
   incorporationDate  DateTime?
 
-  phoneNumber       String?
-  addressLine1      String?
-  addressLine2      String?
-  city              String?
-  stateProvince     String?
-  postalCode        String?
-  country           String  @default("Angola")
-  latitude          Float?
-  longitude         Float?
-  profilePictureUrl String?
+  phoneNumber        String?
+  addressLine1       String?
+  addressLine2       String?
+  city               String?
+  stateProvince      String?
+  postalCode         String?
+  country            String    @default("Angola")
+  latitude           Float?
+  longitude          Float?
+  profilePictureUrl  String?
 
-  role                UserRole           @default(CONSUMER)
-  isVerified          Boolean            @default(false)
-  verificationStatus  VerificationStatus @default(PENDING)
+  role               UserRole   @default(CONSUMER)
+  isVerified         Boolean    @default(false)
+  verificationStatus VerificationStatus @default(PENDING)
   verificationDetails String?
-  averageRating       Float?
+  averageRating      Float?
 
   notificationPreferences Json?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  // Role-specific details
+  /* ---- ROLE‑SPECIFIC DETAIL ---- */
   producerDetails    ProducerDetails?    @relation("ProducerDetails")
   storageDetails     StorageDetails?     @relation("StorageDetails")
   transporterDetails TransporterDetails? @relation("TransporterDetails")
 
-  // Listings / Offerings
-  productListings          ProductListing[]         @relation("ProducerListings")
-  storageListings          StorageListing[]         @relation("StorageListings")
-  transportListings        TransportListing[]       @relation("TransportListings")
+  /* ---- LISTINGS / OFFERS ---- */
+  productListings          ProductListing[]          @relation("ProducerListings")
+  storageListings          StorageListing[]          @relation("StorageListings")
+  transportListings        TransportListing[]        @relation("TransportListings")
   transformationFacilities TransformationFacility[] @relation("OwnerFacilities")
   offerings                Offering[]
 
-  // Orders & Transactions
-  buyerOrders        Order[]              @relation("BuyerOrders")
-  sellerOrders       Order[]              @relation("SellerOrders")
-  transporterOrders  Order[]              @relation("TransporterOrders")
+  /* ---- ORDERS & TRANSACTIONS ---- */
+  buyerOrders        Order[]   @relation("BuyerOrders")
+  sellerOrders       Order[]   @relation("SellerOrders")
+  transporterOrders  Order[]   @relation("TransporterOrders")
   buyerTransactions  PaymentTransaction[] @relation("Buyer")
   sellerTransactions PaymentTransaction[] @relation("Seller")
 
-  // Reviews & Ratings
-  reviewsGiven    Review[]     @relation("ReviewerReviews")
-  reviewsReceived Review[]     @relation("ReviewedUserReviews")
+  /* ---- REVIEWS & RATINGS ---- */
+  reviewsGiven    Review[] @relation("ReviewerReviews")
+  reviewsReceived Review[] @relation("ReviewedUserReviews")
   ratingsGiven    UserRating[] @relation("Reviewer")
   ratingsReceived UserRating[] @relation("Reviewed")
 
-  // Messaging
-  messagesSent     Message[]        @relation("SenderMessages")
-  messagesReceived Message[]        @relation("ReceiverMessages")
-  conversations    Conversation[]   @relation("ParticipantConversations")
+  /* ---- MESSAGING ---- */
+  messagesSent           Message[]        @relation("SenderMessages")
+  messagesReceived       Message[]        @relation("ReceiverMessages")
+  conversationParticipants ConversationParticipant[]
 
-  // Documents & Wallet
-  documents         Document[]
-  paymentReferences PaymentReference[]
-  walletBalance     WalletBalance?
-  transactionLedger TransactionLedger[]
+  /* ---- DOCUMENTS & WALLET ---- */
+  documents           Document[]
+  paymentReferences   PaymentReference[]
+  walletBalance       WalletBalance?
+  transactionLedger   TransactionLedger[]
 
-  // Audit & Scheduling
-  auditLogs         AuditLog[]
-  offeringSchedules OfferingSchedule[]
+  /* ---- AUDIT & SCHEDULING ---- */
+  auditLogs           AuditLog[]
+  offeringSchedules   OfferingSchedule[]
 
-  // Facility Bookings
-  facilityBookings FacilityBooking[]
+  /* ---- FACILITY BOOKINGS ---- */
+  facilityBookings    FacilityBooking[]
 
-  // Order Status History
-  orderStatusChanges OrderStatusHistory[]
+  /* ---- ORDER STATUS HISTORY ---- */
+  orderStatusChanges  OrderStatusHistory[]
 
-  // Notifications
-  notifications Notification[]
-  notificationDeliveries NotificationDelivery[]
+  /* ---- NOTIFICATIONS ---- */
+  notifications               Notification[]
+  notificationDeliveriesOwned NotificationDelivery[] @relation("UserNotificationDeliveries")
 
-  // Production Planning
+  /* ---- PRODUCTION PLANNING ---- */
   productionPlans         ProductionPlan[]       @relation("ProductionPlans")
   productionUpdates       ProductionUpdate[]
   productionSubscriptions ProductionSubscriber[]
   preOrders               PreOrder[]
 
-  // Procurement
+  /* ---- PROCUREMENT ---- */
   componentsRequested Component[] @relation("RequestedComponents")
 
-  // Sessions
+  /* ---- SESSIONS ---- */
   sessions Session[]
 
-  // Certifications
+  /* ---- CERTIFICATIONS ---- */
   certifications Certification[]
+
+  /* ---- INVERSE RELATIONS (added for missing opposite sides) ---- */
+  // Shipments where this user acts as the transporter
+  transportedShipments Shipment[] @relation("ShipmentTransporter")
+  // Verification requests this user reviews
+  verificationRequestsReviewed VerificationRequest[] @relation("UserVerificationRequests")
 
   @@index([email])
   @@index([role])
@@ -286,6 +296,24 @@ model User {
   @@index([entityType])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  COMPONENT (PROCUREMENT)                                                   */
+/* -------------------------------------------------------------------------- */
+model Component {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Back relation to User (many‑to‑many)
+  requestedBy User[] @relation("RequestedComponents")
+}
+
+/* -------------------------------------------------------------------------- */
+/*  SESSION                                                                    */
+/* -------------------------------------------------------------------------- */
 model Session {
   id           String   @id @default(cuid())
   userId       String
@@ -301,43 +329,59 @@ model Session {
   @@index([expiresAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  ROLE PERMISSION                                                            */
+/* -------------------------------------------------------------------------- */
 model RolePermission {
-  id        String                @id @default(cuid())
+  id        String               @id @default(cuid())
   role      UserRole
-  resource  String                // e.g., "ProductListing", "Order", "PaymentTransaction"
-  action    RolePermissionAction  // CRUD / MANAGE
-  condition Json?                 // optional JSON-based constraints
-  createdAt DateTime              @default(now())
+  resource  String
+  action    RolePermissionAction
+  condition Json?
+
+  createdAt DateTime @default(now())
 
   @@unique([role, resource, action])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PRODUCER DETAILS                                                          */
+/* -------------------------------------------------------------------------- */
 model ProducerDetails {
-  id              String  @id @default(uuid())
-  userId          String  @unique
+  id              String @id @default(uuid())
+  userId          String @unique
   farmName        String?
   farmDescription String?
   certifications  String?
-  user            User    @relation("ProducerDetails", fields: [userId], references: [id], onDelete: Cascade)
+  user            User   @relation("ProducerDetails", fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/* -------------------------------------------------------------------------- */
+/*  STORAGE DETAILS                                                            */
+/* -------------------------------------------------------------------------- */
 model StorageDetails {
-  id                     String  @id @default(uuid())
-  userId                 String  @unique
+  id                     String @id @default(uuid())
+  userId                 String @unique
   facilityName           String?
   businessRegistrationId String?
-  user                   User    @relation("StorageDetails", fields: [userId], references: [id], onDelete: Cascade)
+  user                   User   @relation("StorageDetails", fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/* -------------------------------------------------------------------------- */
+/*  TRANSPORTER DETAILS                                                       */
+/* -------------------------------------------------------------------------- */
 model TransporterDetails {
-  id                         String  @id @default(uuid())
-  userId                     String  @unique
+  id                         String @id @default(uuid())
+  userId                     String @unique
   companyName                String?
   driverLicenseId            String?
   vehicleRegistrationDetails String?
-  user                       User    @relation("TransporterDetails", fields: [userId], references: [id], onDelete: Cascade)
+  user                       User   @relation("TransporterDetails", fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/* -------------------------------------------------------------------------- */
+/*  CATEGORY                                                                   */
+/* -------------------------------------------------------------------------- */
 model Category {
   id       String   @id @default(cuid())
   name     String   @unique
@@ -348,13 +392,22 @@ model Category {
   createdAt DateTime @default(now())
 }
 
+/* -------------------------------------------------------------------------- */
+/*  TAG                                                                       */
+/* -------------------------------------------------------------------------- */
 model Tag {
   id        String   @id @default(cuid())
   name      String   @unique
   slug      String   @unique
   createdAt DateTime @default(now())
+
+  // Inverse of ProductTag.tag
+  productTags ProductTag[]
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PRODUCT LISTING                                                            */
+/* -------------------------------------------------------------------------- */
 model ProductListing {
   id                      String    @id @default(uuid())
   producerId              String
@@ -379,16 +432,23 @@ model ProductListing {
   updatedAt               DateTime  @updatedAt
 
   // Relations
-  producer      User                @relation("ProducerListings", fields: [producerId], references: [id], onDelete: Cascade)
-  orderItems    OrderItem[]         @relation("ProductOrderItems")
-  reviews       Review[]            @relation("ProductReviews")
+  producer       User                @relation("ProducerListings", fields: [producerId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]         @relation("ProductOrderItems")
+  reviews        Review[]            @relation("ProductReviews")
   inventoryMoves InventoryMovement[]
   productTags    ProductTag[]
+
+  // Inverse relations
+  certifications Certification[] @relation("ProductListingCertifications")
+  promotions     Promotion[]   @relation("ProductListingPromotions")
 
   @@index([status, category])
   @@index([producerId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PRODUCT‑TAG (JOIN)                                                         */
+/* -------------------------------------------------------------------------- */
 model ProductTag {
   productListingId String
   tagId            String
@@ -398,22 +458,28 @@ model ProductTag {
   @@id([productListingId, tagId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  INVENTORY MOVEMENT                                                         */
+/* -------------------------------------------------------------------------- */
 model InventoryMovement {
-  id             String         @id @default(cuid())
+  id               String        @id @default(cuid())
   productListingId String
-  productListing ProductListing @relation(fields: [productListingId], references: [id], onDelete: Cascade)
-  type           String         // "ADD" | "RESERVE" | "FULFILL" | "ADJUST" | "CANCEL"
-  quantity       Float
-  unit           String
-  reason         String?
-  referenceId    String?        // optional link to order/preorder/etc
-  createdBy      String?
-  createdAt      DateTime       @default(now())
+  productListing   ProductListing @relation(fields: [productListingId], references: [id], onDelete: Cascade)
+  type             String        // "ADD" | "RESERVE" | "FULFILL" | "ADJUST" | "CANCEL"
+  quantity         Float
+  unit             String
+  reason           String?
+  referenceId      String?        // optional link to order/preorder/etc
+  createdBy        String?
+  createdAt        DateTime       @default(now())
 
   @@index([productListingId])
   @@index([createdAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  STORAGE LISTING                                                            */
+/* -------------------------------------------------------------------------- */
 model StorageListing {
   id                 String   @id @default(uuid())
   ownerId            String
@@ -445,6 +511,9 @@ model StorageListing {
   @@index([availabilityStatus])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  TRANSPORT LISTING                                                          */
+/* -------------------------------------------------------------------------- */
 model TransportListing {
   id                     String   @id @default(uuid())
   transporterId          String
@@ -474,6 +543,9 @@ model TransportListing {
   @@index([availabilityStatus])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  ORDER                                                                      */
+/* -------------------------------------------------------------------------- */
 model Order {
   id                    String        @id @default(uuid())
   orderNumber           String?       @unique
@@ -505,16 +577,20 @@ model Order {
   transporter      User?                @relation("TransporterOrders", fields: [transporterId], references: [id], onDelete: SetNull)
   transportListing TransportListing?    @relation("TransportOrders", fields: [transportListingId], references: [id], onDelete: SetNull)
   storage          StorageListing?      @relation("StorageOrders", fields: [storageId], references: [id], onDelete: SetNull)
-  orderItems       OrderItem[]          @relation("OrderItems")
-  statusHistory    OrderStatusHistory[]
-  preOrder         PreOrder?
-  shipment         Shipment?
+
+  orderItems   OrderItem[]          @relation("OrderItems")
+  statusHistory OrderStatusHistory[]
+  preOrder      PreOrder?
+  shipment      Shipment?
 
   @@index([buyerId, sellerId, orderStatus])
   @@index([orderNumber])
   @@index([createdAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  ORDER ITEM                                                                 */
+/* -------------------------------------------------------------------------- */
 model OrderItem {
   id                  String   @id @default(uuid())
   orderId             String
@@ -531,14 +607,17 @@ model OrderItem {
   @@index([productListingId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  ORDER STATUS HISTORY                                                       */
+/* -------------------------------------------------------------------------- */
 model OrderStatusHistory {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
   status    String
-  notes     String?  @db.Text
+  notes     String? @db.Text
   changedBy String
-  user      User     @relation(fields: [changedBy], references: [id], onDelete: SetNull)
+  user      User    @relation(fields: [changedBy], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 
   @@index([orderId])
@@ -546,12 +625,16 @@ model OrderStatusHistory {
   @@index([createdAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  SHIPMENT                                                                    */
+/* -------------------------------------------------------------------------- */
 model Shipment {
   id            String        @id @default(cuid())
   orderId       String        @unique
   order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   transporterId String?
-  transporter   User?         @relation(fields: [transporterId], references: [id], onDelete: SetNull)
+  transporter   User?         @relation("ShipmentTransporter", fields: [transporterId], references: [id], onDelete: SetNull)
+
   origin        String
   destination   String
   pickupDate    DateTime?
@@ -567,6 +650,9 @@ model Shipment {
   @@index([status])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  TRACKING EVENT                                                             */
+/* -------------------------------------------------------------------------- */
 model TrackingEvent {
   id          String           @id @default(cuid())
   shipmentId  String
@@ -581,6 +667,9 @@ model TrackingEvent {
   @@index([shipmentId, occurredAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  REVIEW                                                                      */
+/* -------------------------------------------------------------------------- */
 model Review {
   id                  String   @id @default(uuid())
   reviewerId          String
@@ -605,8 +694,11 @@ model Review {
   @@index([reviewedEntityType, reviewedUserId, reviewedProductId, reviewedStorageId, reviewedTransportId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  USER RATING                                                                 */
+/* -------------------------------------------------------------------------- */
 model UserRating {
-  id          String   @id @default(uuid())
+  id          String @id @default(uuid())
   reviewerId  String
   reviewedId  String
   rating      Int
@@ -620,17 +712,22 @@ model UserRating {
   @@index([reviewerId, reviewedId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  CONVERSATION                                                               */
+/* -------------------------------------------------------------------------- */
 model Conversation {
-  id           String  @id @default(cuid())
-  title        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Participants (User–Conversation join)
   participants ConversationParticipant[]
   messages     Message[]
 }
 
+/* -------------------------------------------------------------------------- */
+/*  CONVERSATION PARTICIPANT                                                   */
+/* -------------------------------------------------------------------------- */
 model ConversationParticipant {
   conversationId String
   userId         String
@@ -642,6 +739,9 @@ model ConversationParticipant {
   @@id([conversationId, userId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  MESSAGE                                                                     */
+/* -------------------------------------------------------------------------- */
 model Message {
   id             String    @id @default(uuid())
   conversationId String
@@ -659,6 +759,9 @@ model Message {
   @@index([senderId, receiverId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  DOCUMENT                                                                    */
+/* -------------------------------------------------------------------------- */
 model Document {
   id              String         @id @default(cuid())
   userId          String
@@ -684,12 +787,15 @@ model Document {
   @@index([status])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  VERIFICATION REQUEST                                                       */
+/* -------------------------------------------------------------------------- */
 model VerificationRequest {
   id          String           @id @default(cuid())
   documentId  String
   document    Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
   assignedTo  String?
-  reviewer    User?            @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  reviewer    User?            @relation("UserVerificationRequests", fields: [assignedTo], references: [id], onDelete: SetNull)
   status      VerificationStatus @default(PENDING)
   severity    SeverityLevel    @default(INFO)
   notes       String?          @db.Text
@@ -700,6 +806,9 @@ model VerificationRequest {
   @@index([assignedTo, status])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  NOTIFICATION                                                               */
+/* -------------------------------------------------------------------------- */
 model Notification {
   id        String   @id @default(cuid())
   userId    String
@@ -717,10 +826,13 @@ model Notification {
   @@index([createdAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  NOTIFICATION DELIVERY                                                       */
+/* -------------------------------------------------------------------------- */
 model NotificationDelivery {
-  id              String                    @id @default(cuid())
+  id              String                     @id @default(cuid())
   notificationId  String
-  notification    Notification              @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  notification    Notification               @relation(fields: [notificationId], references: [id], onDelete: Cascade)
   channel         NotificationChannel
   status          NotificationDeliveryStatus @default(QUEUED)
   providerMessageId String?
@@ -729,19 +841,33 @@ model NotificationDelivery {
   errorMessage    String?
   createdAt       DateTime @default(now())
 
+  // Inverse side of User.notificationDeliveriesOwned
+  userId          String?
+  user            User?    @relation("UserNotificationDeliveries", fields: [userId], references: [id], onDelete: SetNull)
+
   @@index([channel, status])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PAYMENT PROVIDER                                                            */
+/* -------------------------------------------------------------------------- */
 model PaymentProvider {
   id            String   @id @default(cuid())
-  name          String   @unique       // e.g., "MobileMoney_AO", "BankTransfer_AO"
-  type          String                 // MOBILE_MONEY | BANK | CARD | CASH
+  name          String   @unique
+  type          String
   isActive      Boolean  @default(true)
-  config        Json?                   // API keys, endpoints, fee structure
+  config        Json?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // Inverse of PaymentTransaction.provider
+  paymentTransactions PaymentTransaction[] @relation("ProviderTransactions")
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PAYMENT TRANSACTION                                                         */
+/* -------------------------------------------------------------------------- */
 model PaymentTransaction {
   id                String        @id @default(uuid())
   buyerId           String
@@ -761,12 +887,12 @@ model PaymentTransaction {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  buyer         User                @relation("Buyer", fields: [buyerId], references: [id], onDelete: Cascade)
-  seller        User                @relation("Seller", fields: [sellerId], references: [id], onDelete: Cascade)
-  escrow        EscrowTransaction?  @relation("PaymentEscrow")
+  buyer       User                @relation("Buyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller      User                @relation("Seller", fields: [sellerId], references: [id], onDelete: Cascade)
+  escrow      EscrowTransaction?  @relation("PaymentEscrow")
   ledgerEntries TransactionLedger[]
-  providerId    String?
-  provider      PaymentProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  providerId  String?
+  provider    PaymentProvider?    @relation("ProviderTransactions", fields: [providerId], references: [id], onDelete: SetNull)
 
   @@index([buyerId])
   @@index([sellerId])
@@ -775,20 +901,26 @@ model PaymentTransaction {
   @@index([createdAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  ESCROW TRANSACTION                                                         */
+/* -------------------------------------------------------------------------- */
 model EscrowTransaction {
-  id                   String             @id @default(cuid())
-  paymentTransactionId String             @unique
+  id                   String   @id @default(cuid())
+  paymentTransactionId String   @unique
   paymentTransaction   PaymentTransaction @relation("PaymentEscrow", fields: [paymentTransactionId], references: [id])
   milestone            String?
-  status               EscrowStatus       @default(HELD)
+  status               EscrowStatus @default(HELD)
   releaseDate          DateTime?
   releasedBy           String?
-  createdAt            DateTime           @default(now())
+  createdAt            DateTime @default(now())
 
   @@index([paymentTransactionId])
   @@index([status])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  TRANSACTION LEDGER                                                         */
+/* -------------------------------------------------------------------------- */
 model TransactionLedger {
   id            String             @id @default(cuid())
   transactionId String
@@ -800,13 +932,16 @@ model TransactionLedger {
   amount        Float
   balance       Float
   description   String
-  createdAt     DateTime           @default(now())
+  createdAt     DateTime @default(now())
 
   @@index([transactionId])
   @@index([userId])
   @@index([createdAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PAYMENT REFERENCE                                                          */
+/* -------------------------------------------------------------------------- */
 model PaymentReference {
   id          String        @id @default(cuid())
   reference   String        @unique
@@ -817,13 +952,16 @@ model PaymentReference {
   status      PaymentStatus @default(PENDING)
   confirmedAt DateTime?
   createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @default(now()) @updatedAt
+  updatedAt   DateTime      @updatedAt @updatedAt
 
   @@index([reference])
   @@index([userId])
   @@index([status])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  WALLET BALANCE                                                             */
+/* -------------------------------------------------------------------------- */
 model WalletBalance {
   id        String   @id @default(uuid())
   userId    String   @unique
@@ -834,6 +972,9 @@ model WalletBalance {
   @@index([userId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  TRANSFORMATION FACILITY                                                    */
+/* -------------------------------------------------------------------------- */
 model TransformationFacility {
   id             String            @id @default(cuid())
   name           String
@@ -852,6 +993,9 @@ model TransformationFacility {
   @@index([isActive])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  FACILITY BOOKING                                                          */
+/* -------------------------------------------------------------------------- */
 model FacilityBooking {
   id              String                 @id @default(cuid())
   facilityId      String
@@ -879,6 +1023,9 @@ model FacilityBooking {
   @@index([startDate, endDate])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PRODUCTION PLAN                                                            */
+/* -------------------------------------------------------------------------- */
 model ProductionPlan {
   id                   String           @id @default(cuid())
   producerId           String
@@ -903,8 +1050,8 @@ model ProductionPlan {
   farmingMethod        String?
   certifications       String[]
   images               String[]
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   schedules   ProductionSchedule[]
   updates     ProductionUpdate[]
@@ -917,6 +1064,9 @@ model ProductionPlan {
   @@index([isPublic])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PRODUCTION SCHEDULE                                                       */
+/* -------------------------------------------------------------------------- */
 model ProductionSchedule {
   id               String         @id @default(cuid())
   productionPlanId String
@@ -937,6 +1087,9 @@ model ProductionSchedule {
   @@index([status])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PRODUCTION UPDATE                                                         */
+/* -------------------------------------------------------------------------- */
 model ProductionUpdate {
   id                 String         @id @default(cuid())
   productionPlanId   String
@@ -951,14 +1104,17 @@ model ProductionUpdate {
   dateAdjustment     DateTime?
   createdBy          String
   user               User           @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  createdAt          DateTime       @default(now())
+  createdAt          DateTime @default(now())
 
   @@index([productionPlanId])
   @@index([createdAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PRODUCTION SUBSCRIBER                                                     */
+/* -------------------------------------------------------------------------- */
 model ProductionSubscriber {
-  id                 String         @id @default(cuid())
+  id                 String @id @default(cuid())
   productionPlanId   String
   productionPlan     ProductionPlan @relation(fields: [productionPlanId], references: [id], onDelete: Cascade)
   userId             String
@@ -969,12 +1125,15 @@ model ProductionSubscriber {
   notify7DaysBefore  Boolean        @default(true)
   notify1DayBefore   Boolean        @default(true)
   notifyOnHarvest    Boolean        @default(true)
-  subscribedAt       DateTime       @default(now())
+  subscribedAt       DateTime @default(now())
 
   @@unique([productionPlanId, userId])
   @@index([userId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PRE‑ORDER                                                                  */
+/* -------------------------------------------------------------------------- */
 model PreOrder {
   id                 String         @id @default(cuid())
   productionPlanId   String
@@ -988,81 +1147,96 @@ model PreOrder {
   depositAmount      Float?
   depositPaid        Boolean        @default(false)
   notes              String?        @db.Text
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @default(now()) @updatedAt
-  convertedToOrderId String?        @unique
-  convertedToOrder   Order?         @relation(fields: [convertedToOrderId], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now()) @updatedAt
+  convertedToOrderId String? @unique
+  convertedToOrder   Order? @relation(fields: [convertedToOrderId], references: [id])
 
   @@index([productionPlanId])
   @@index([customerId])
   @@index([status])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  OFFERING                                                                   */
+/* -------------------------------------------------------------------------- */
 model Offering {
-  id          String             @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String?
   ownerId     String
-  owner       User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   schedules   OfferingSchedule[]
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([ownerId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  OFFERING SCHEDULE                                                          */
+/* -------------------------------------------------------------------------- */
 model OfferingSchedule {
-  id         String        @id @default(cuid())
-  offeringId String
-  offering   Offering      @relation(fields: [offeringId], references: [id], onDelete: Cascade)
-  startTime  DateTime
-  endTime    DateTime
-  bookedById String?
-  bookedBy   User?         @relation(fields: [bookedById], references: [id], onDelete: SetNull)
-  status     BookingStatus @default(PENDING)
-  notes      String?       @db.Text
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id          String   @id @default(cuid())
+  offeringId  String
+  offering    Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  startTime   DateTime
+  endTime     DateTime
+  bookedById  String?
+  bookedBy    User?    @relation(fields: [bookedById], references: [id], onDelete: SetNull)
+  status      BookingStatus @default(PENDING)
+  notes       String? @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([offeringId])
   @@index([startTime, endTime])
   @@index([bookedById])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  CERTIFICATION                                                              */
+/* -------------------------------------------------------------------------- */
 model Certification {
-  id            String   @id @default(cuid())
-  userId        String?
-  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  productListingId String?
-  productListing   ProductListing? @relation(fields: [productListingId], references: [id], onDelete: SetNull)
-  name          String   // e.g., "Organic", "FairTrade"
-  issuer        String
-  certificateId String
-  issueDate     DateTime
-  expiryDate    DateTime?
-  verified      Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id                String   @id @default(cuid())
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  productListingId  String?
+  productListing    ProductListing? @relation("ProductListingCertifications", fields: [productListingId], references: [id], onDelete: SetNull)
+  name              String   // e.g., "Organic", "FairTrade"
+  issuer            String
+  certificateId     String
+  issueDate         DateTime
+  expiryDate        DateTime?
+  verified          Boolean  @default(false)
+  createdAt         DateTime @default(now())
 
   @@index([userId, productListingId])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  PROMOTION                                                                  */
+/* -------------------------------------------------------------------------- */
 model Promotion {
-  id               String        @id @default(cuid())
+  id               String   @id @default(cuid())
   title            String
   description      String?
   type             PromotionType
-  value            Float         // percentage or fixed amount depending on type
+  value            Float    // percentage or fixed amount depending on type
   startDate        DateTime
   endDate          DateTime?
-  active           Boolean       @default(true)
+  active           Boolean  @default(true)
   appliesToListingId String?
-  listing          ProductListing? @relation(fields: [appliesToListingId], references: [id], onDelete: SetNull)
-  appliesToCategory String?      // optional category-wide promotion
-  createdAt        DateTime      @default(now())
+  listing          ProductListing? @relation("ProductListingPromotions", fields: [appliesToListingId], references: [id], onDelete: SetNull)
+  appliesToCategory String?      // optional category‑wide promotion
+  createdAt        DateTime @default(now())
 
   @@index([active, startDate, endDate])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  AUDIT LOG                                                                  */
+/* -------------------------------------------------------------------------- */
 model AuditLog {
   id            String   @id @default(cuid())
   userId        String?
@@ -1072,7 +1246,7 @@ model AuditLog {
   entityId      String
   severity      SeverityLevel @default(INFO)
   details       Json?
-  entitySnapshot Json?   // optional before/after states
+  entitySnapshot Json?
   ipAddress     String?
   userAgent     String?
   createdAt     DateTime @default(now())
@@ -1083,6 +1257,9 @@ model AuditLog {
   @@index([createdAt])
 }
 
+/* -------------------------------------------------------------------------- */
+/*  METRIC SNAPSHOT                                                            */
+/* -------------------------------------------------------------------------- */
 model MetricSnapshot {
   id          String   @id @default(cuid())
   key         String   // e.g., "daily_sales_AOA", "avg_delivery_days", "new_users"
