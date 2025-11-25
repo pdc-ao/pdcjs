@@ -111,8 +111,7 @@ module.exports = async function (req, res) {
   }
 
   // DEBUG – appears in the Vercel Function logs
-  console.log('[API] resolved ->', { file: targetFile, params: slugArray });
-
+  console.log('[API] resolved ->', { file: targetFile, exists: fs.existsSync(targetFile) });
   // ---------- Load & execute the handler ----------
   if (fs.existsSync(targetFile)) {
     try {
