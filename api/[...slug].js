@@ -15,17 +15,17 @@ const path = require('path');
 const url  = require('url');
 
 // ------------------------------------------------------------------
-// 1️⃣ Tiny JSON helper (same as every other API file)
+// JSON helper
 // ------------------------------------------------------------------
 function json(res, payload, status = 200) {
-  if (res.headersSent) return;                 // guard against double‑send
+  if (res.headersSent) return;
   res.statusCode = status;
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
 }
 
 // ------------------------------------------------------------------
-// 2️⃣ CORS helper (required for front‑end calls)
+// CORS helper
 // ------------------------------------------------------------------
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -34,7 +34,7 @@ function setCors(res) {
 }
 
 // ------------------------------------------------------------------
-// 3️⃣ Parse a JSON body (used by legacy handlers)
+// Parse JSON body
 // ------------------------------------------------------------------
 function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -53,7 +53,7 @@ function parseJsonBody(req) {
 }
 
 // ------------------------------------------------------------------
-// 4️⃣ Main exported Vercel handler
+// Main exported Vercel handler
 // ------------------------------------------------------------------
 module.exports = async function (req, res) {
   // ---------- CORS & pre‑flight ----------
@@ -70,10 +70,10 @@ module.exports = async function (req, res) {
     .replace(/^\/+/, '');
   const slugArray = clean ? clean.split('/').filter(Boolean) : [];
 
-  // keep legacy compatibility – some old handlers read req._slugArray
+  // legacy compatibility
   req._slugArray = slugArray;
 
-  // ---------- Body parsing for JSON ----------
+  // ---------- Body parsing ----------
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
     try {
       req.body = await parseJsonBody(req);
@@ -82,11 +82,11 @@ module.exports = async function (req, res) {
     }
   }
 
-  // ---------- Tiny Express‑style shims ----------
+  // ---------- Express‑style shims ----------
   if (typeof res.status !== 'function') {
     res.status = function (code) {
       this.statusCode = code;
-      return this;               // chainable
+      return this;
     };
   }
   if (typeof res.json !== 'function') {
@@ -96,7 +96,7 @@ module.exports = async function (req, res) {
   }
 
   // ----------------------------------------------------------------
-  // 1️⃣ Try to resolve a handler **inside** the /api folder first
+  // Try internal handler
   // ----------------------------------------------------------------
   let internalFile = path.join(process.cwd(), 'api', ...slugArray);
   if (fs.existsSync(internalFile) && fs.statSync(internalFile).isDirectory()) {
@@ -109,11 +109,10 @@ module.exports = async function (req, res) {
   if (fs.existsSync(internalFile)) {
     try {
       const mod = require(internalFile);
-      // Support the common patterns used by your legacy handlers
       if (typeof mod === 'function') return mod(req, res);
-      if (mod && typeof mod.default === 'function') return mod.default(req, res);
-      if (mod && typeof mod.handler === 'function') return mod.handler(req, res);
-      if (mod && typeof mod[req.method] === 'function') return mod[req.method](req, res);
+      if (mod?.default instanceof Function) return mod.default(req, res);
+      if (mod?.handler instanceof Function) return mod.handler(req, res);
+      if (mod?.[req.method] instanceof Function) return mod[req.method](req, res);
       return json(res, { error: 'Handler did not send a response' }, 500);
     } catch (e) {
       console.error('[API] internal load error', e);
@@ -122,7 +121,7 @@ module.exports = async function (req, res) {
   }
 
   // ----------------------------------------------------------------
-  // 2️⃣ Fallback – look in the external folder (archived‑api)
+  // Fallback external handler
   // ----------------------------------------------------------------
   let externalFile = path.join(process.cwd(), 'archived-api', ...slugArray);
   if (fs.existsSync(externalFile) && fs.statSync(externalFile).isDirectory()) {
@@ -136,9 +135,9 @@ module.exports = async function (req, res) {
     try {
       const mod = require(externalFile);
       if (typeof mod === 'function') return mod(req, res);
-      if (mod && typeof mod.default === 'function') return mod.default(req, res);
-      if (mod && typeof mod.handler === 'function') return mod.handler(req, res);
-      if (mod && typeof mod[req.method] === 'function') return mod[req.method](req, res);
+      if (mod?.default instanceof Function) return mod.default(req, res);
+      if (mod?.handler instanceof Function) return mod.handler(req, res);
+      if (mod?.[req.method] instanceof Function) return mod[req.method](req, res);
       return json(res, { error: 'Handler did not send a response' }, 500);
     } catch (e) {
       console.error('[API] external load error', e);
@@ -147,7 +146,7 @@ module.exports = async function (req, res) {
   }
 
   // ----------------------------------------------------------------
-  // 3️⃣ Nothing matched → 404
+  // Nothing matched → 404
   // ----------------------------------------------------------------
   return json(res, { error: 'Not found' }, 404);
 };
