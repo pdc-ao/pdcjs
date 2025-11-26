@@ -98,12 +98,12 @@ module.exports = async (req, res) => {
       return json(res, { error: 'Invalid JSON body' }, 400);
     }
 
+    // ---- Required fields (capacityUnit optional now) ----
     const required = [
       'facilityName',
       'storageType',
       'totalCapacity',
-      'availabilityStatus',
-      'capacityUnit'
+      'availabilityStatus'
     ];
     for (const f of required) {
       if (!body[f]) return json(res, { error: `${f} is required` }, 400);
@@ -115,7 +115,7 @@ module.exports = async (req, res) => {
       storageType: body.storageType.trim(),
       totalCapacity: Number(body.totalCapacity),
       availabilityStatus: body.availabilityStatus.trim(),
-      capacityUnit: body.capacityUnit.trim(),
+      capacityUnit: body.capacityUnit?.trim() || null,
       availableCapacity: body.availableCapacity !== undefined
         ? Number(body.availableCapacity)
         : null,
