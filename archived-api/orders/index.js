@@ -16,6 +16,9 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
+    // -------------------------------------------------
+    // POST – create a new order
+    // -------------------------------------------------
     if (req.method === 'POST') {
       const { items = [] } = req.body || {};
       if (!items.length) return res.status(400).json({ error: 'items required' });
@@ -55,14 +58,17 @@ module.exports = async (req, res) => {
           shippingCity: 'Luanda',
           shippingPostalCode: '1000',
           shippingCountry: 'Angola',
-          items: { create: orderItemsData }
+          orderItems: { create: orderItemsData }   // ✅ corrected relation
         },
-        include: { items: true }
+        include: { orderItems: true }              // ✅ corrected relation
       });
 
       return res.status(201).json({ data: order });
     }
 
+    // -------------------------------------------------
+    // GET – list orders
+    // -------------------------------------------------
     if (req.method === 'GET') {
       const { all } = req.query;
 
@@ -80,7 +86,7 @@ module.exports = async (req, res) => {
       const orders = await prisma.order.findMany({
         where,
         include: {
-          items: {
+          orderItems: {                           // ✅ corrected relation
             include: {
               productListing: true
             }
@@ -94,6 +100,9 @@ module.exports = async (req, res) => {
       return res.json({ data: orders });
     }
 
+    // -------------------------------------------------
+    // Anything else → 405
+    // -------------------------------------------------
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('[ORDERS API]', err);
