@@ -1,8 +1,8 @@
 // =============================================================
 // api/[...slug].js – ONE catch‑all Vercel Function
 // -------------------------------------------------------------
-// * Resolves any /api/* request to a handler that lives **outside**
-//   the /api folder (archived‑api/, src/... etc.).
+// * Resolves any /api/* request to a handler that lives **inside**
+//   the /api folder **or** outside it (archived‑api/, etc.).
 // * Parses JSON bodies and adds tiny Express‑style shims
 //   (res.status, res.json) so legacy handlers keep working.
 // * Handles folder‑index routes (e.g. /api/products → archived‑api/products/index.js).
@@ -67,13 +67,13 @@ module.exports = async function (req, res) {
   const parsed   = url.parse(req.url || '');
   const clean    = (parsed.pathname || '')
     .replace(/^\/api\/?/, '')   // strip leading "/api"
-    .replace(/^\/+/, '');       // remove any extra leading slash
+    .replace(/^\/+/, '');
   const slugArray = clean ? clean.split('/').filter(Boolean) : [];
 
-  // keep legacy compatibility (some old handlers read req._slugArray)
+  // keep legacy compatibility – some old handlers read req._slugArray
   req._slugArray = slugArray;
 
-  // ---------- Body parsing for POST/PUT/PATCH ----------
+  // ---------- Body parsing for JSON ----------
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
     try {
       req.body = await parseJsonBody(req);
@@ -82,11 +82,11 @@ module.exports = async function (req, res) {
     }
   }
 
-  // ---------- Tiny Express‑style shims (so old handlers keep working) ----------
+  // ---------- Tiny Express‑style shims ----------
   if (typeof res.status !== 'function') {
     res.status = function (code) {
       this.statusCode = code;
-      return this;                     // chainable
+      return this;               // chainable
     };
   }
   if (typeof res.json !== 'function') {
@@ -95,44 +95,59 @@ module.exports = async function (req, res) {
     };
   }
 
-  // ---------- Resolve the file that should handle this request ----------
-  // Build the absolute path inside the lambda bundle.
-  // process.cwd() = repository root when the lambda runs.
-  let targetFile = path.join(process.cwd(), 'archived-api', ...slugArray);
-
-  // If the path points to a directory → use its index.js
-  if (fs.existsSync(targetFile) && fs.statSync(targetFile).isDirectory()) {
-    targetFile = path.join(targetFile, 'index.js');
-  } else {
-    // Otherwise make sure we have the .js extension
-    if (!targetFile.endsWith('.js')) {
-      targetFile = targetFile + '.js';
-    }
+  // ----------------------------------------------------------------
+  // 1️⃣ Try to resolve a handler **inside** the /api folder first
+  // ----------------------------------------------------------------
+  let internalFile = path.join(process.cwd(), 'api', ...slugArray);
+  if (fs.existsSync(internalFile) && fs.statSync(internalFile).isDirectory()) {
+    internalFile = path.join(internalFile, 'index.js');
+  } else if (!internalFile.endsWith('.js')) {
+    internalFile = internalFile + '.js';
   }
+  console.log('[API] try internal ->', internalFile);
 
-  // DEBUG – appears in the Vercel Function logs
-  console.log('[API] resolved ->', { file: targetFile, exists: fs.existsSync(targetFile) });
-  // ---------- Load & execute the handler ----------
-  if (fs.existsSync(targetFile)) {
+  if (fs.existsSync(internalFile)) {
     try {
-      const mod = require(targetFile);               // legacy handlers export a function
-      // The handler can be:
-      //   - a plain function (module.exports = async (req,res)=>{…})
-      //   - an ES‑module default export
-      //   - an object with .handler or verb methods (GET, POST …)
+      const mod = require(internalFile);
+      // Support the common patterns used by your legacy handlers
       if (typeof mod === 'function') return mod(req, res);
       if (mod && typeof mod.default === 'function') return mod.default(req, res);
       if (mod && typeof mod.handler === 'function') return mod.handler(req, res);
       if (mod && typeof mod[req.method] === 'function') return mod[req.method](req, res);
-
-      // If we got here the module didn’t export anything we can call
       return json(res, { error: 'Handler did not send a response' }, 500);
     } catch (e) {
-      console.error('[API loader error]', e);
-      return json(res, { error: 'Failed to load handler' }, 500);
+      console.error('[API] internal load error', e);
+      return json(res, { error: 'Failed to load internal handler' }, 500);
     }
   }
 
-  // ---------- Nothing matched → 404 ----------
+  // ----------------------------------------------------------------
+  // 2️⃣ Fallback – look in the external folder (archived‑api)
+  // ----------------------------------------------------------------
+  let externalFile = path.join(process.cwd(), 'archived-api', ...slugArray);
+  if (fs.existsSync(externalFile) && fs.statSync(externalFile).isDirectory()) {
+    externalFile = path.join(externalFile, 'index.js');
+  } else if (!externalFile.endsWith('.js')) {
+    externalFile = externalFile + '.js';
+  }
+  console.log('[API] try external ->', externalFile);
+
+  if (fs.existsSync(externalFile)) {
+    try {
+      const mod = require(externalFile);
+      if (typeof mod === 'function') return mod(req, res);
+      if (mod && typeof mod.default === 'function') return mod.default(req, res);
+      if (mod && typeof mod.handler === 'function') return mod.handler(req, res);
+      if (mod && typeof mod[req.method] === 'function') return mod[req.method](req, res);
+      return json(res, { error: 'Handler did not send a response' }, 500);
+    } catch (e) {
+      console.error('[API] external load error', e);
+      return json(res, { error: 'Failed to load external handler' }, 500);
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // 3️⃣ Nothing matched → 404
+  // ----------------------------------------------------------------
   return json(res, { error: 'Not found' }, 404);
 };
