@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
       return json(res, { error: 'Invalid JSON body' }, 400);
     }
 
-    // ---- Required fields (capacityUnit optional now) ----
+    // ---- Required fields (capacityUnit optional) ----
     const required = [
       'facilityName',
       'storageType',
@@ -110,7 +110,6 @@ module.exports = async (req, res) => {
     }
 
     const data = {
-      ownerId: userId,
       facilityName: body.facilityName.trim(),
       storageType: body.storageType.trim(),
       totalCapacity: Number(body.totalCapacity),
@@ -126,7 +125,10 @@ module.exports = async (req, res) => {
       postalCode: body.postalCode?.trim() || '',
       pricingStructure: body.pricingStructure?.trim() || '',
       latitude: body.latitude !== undefined ? Number(body.latitude) : null,
-      longitude: body.longitude !== undefined ? Number(body.longitude) : null
+      longitude: body.longitude !== undefined ? Number(body.longitude) : null,
+
+      // ✅ connect relation instead of ownerId
+      owner: { connect: { id: userId } }
     };
 
     try {
