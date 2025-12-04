@@ -124,8 +124,8 @@ module.exports = async (req, res) => {
       city: body.city?.trim() || '',
       postalCode: body.postalCode?.trim() || '',
       pricingStructure: body.pricingStructure?.trim() || '',
-      latitude: body.latitude !== undefined ? Number(body.latitude) : null,
-      longitude: body.longitude !== undefined ? Number(body.longitude) : null,
+      latitude: body.latitude !== undefined ? Number(body.latitude) : 0,   // ✅ default to 0
+      longitude: body.longitude !== undefined ? Number(body.longitude) : 0, // ✅ default to 0
 
       // ✅ connect relation instead of ownerId
       owner: { connect: { id: userId } }
