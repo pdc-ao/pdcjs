@@ -1,16 +1,49 @@
 {
- "version": 2,
- "builds": [
-  {
-   "src": "src/index.js",
-   "use": "@vercel/node",
-   "config": { "includeFiles": ["dist/**"] }
-  }
- ],
- "routes": [
-  {
-   "src": "/(.*)",
-   "dest": "src/index.js"
-  }
- ]
+  "version": 2,
+
+  // --------------------------------------------------------------
+  // ONE SERVERLESS FUNCTION – the catch‑all in src/index.js
+  // --------------------------------------------------------------
+  "builds": [
+    {
+      "src": "src/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "src/**",
+          "lib/**",
+          "prisma/**",
+          "node_modules/**"
+        ]
+      }
+    },
+
+    // --------------------------------------------------------------
+    // All other files that live at the repository root are served
+    // as static assets (HTML, CSS, images, etc.)
+    // --------------------------------------------------------------
+    {
+      "src": "*.{js,css,html,htm,json,txt,ico,png,jpg,jpeg,svg,webp,woff,woff2,ttf,eot,map}",
+      "use": "@vercel/static"
+    }
+  ],
+
+  // --------------------------------------------------------------
+  // ROUTING
+  // --------------------------------------------------------------
+  "routes": [
+    // 1️⃣  Serve static assets first – this prevents the catch‑all
+    //     from trying to treat them as API routes.
+    {
+      "src": "/(.*\\.(js|css|html|htm|json|txt|ico|png|jpe?g|svg|webp|woff2?|ttf|eot|map))",
+      "dest": "/$1"
+    },
+
+    // 2️⃣  Everything else (including /api/*) goes to the single
+    //     Node function.
+    {
+      "src": "/(.*)",
+      "dest": "src/index.js"
+    }
+  ]
 }
