@@ -1,14 +1,14 @@
 // =============================================================
-// src/index.js  – ONE catch‑all Vercel Function
+// src/index.js – ONE catch‑all Vercel Function
 // -------------------------------------------------------------
 // * Resolves any /api/* request to a handler that lives **inside**
-//   the *src* folder (previously called api/) or in the
-//   archived‑api/ folder.
-// * Parses JSON bodies and adds tiny Express‑style shims
-//   (res.status, res.json) so legacy handlers keep working.
+//   the `src` folder (previously called `api/`) or in the
+//   `archived-api/` folder.
+// * Parses JSON bodies, adds tiny Express‑style shims (res.status,
+//   res.json) so legacy handlers keep working.
 // * Handles folder‑index routes (e.g. /api/products →
 //   archived‑api/products/index.js).
-// * Sends proper CORS headers (required for browser calls).
+// * Sends proper CORS headers.
 // * Keeps the Hobby‑plan limit: ONLY THIS file lives in a
 //   server‑less function.
 // =============================================================
@@ -71,10 +71,17 @@ module.exports = async function (req, res) {
 
   // ---------- Parse the incoming URL ----------
   const parsed = url.parse(req.url || '');
+  // strip the leading "/api" (the route that Vercel sends us)
   const clean = (parsed.pathname || '')
-    .replace(/^\/api\/?/, '') // strip leading "/api"
+    .replace(/^\/api\/?/, '')
     .replace(/^\/+/, '');
   const slugArray = clean ? clean.split('/').filter(Boolean) : [];
+
+  // If somebody calls just "/api" (or "/api/") we have no endpoint.
+  // Returning early prevents the function from trying to require itself.
+  if (slugArray.length === 0) {
+    return json(res, { error: 'No API endpoint specified' }, 404);
+  }
 
   // expose the slug for any legacy handler that expects it
   req._slugArray = slugArray;

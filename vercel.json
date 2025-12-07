@@ -1,15 +1,50 @@
 {
   "version": 2,
+
+  // --------------------------------------------------------------
+  // ONE SERVERLESS FUNCTION (the catch‑all we just fixed)
+  // --------------------------------------------------------------
   "builds": [
     {
       "src": "src/index.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "src/**",
+          "lib/**",
+          "prisma/**",
+          "node_modules/**"
+        ]
+      }
+    },
+
+    // --------------------------------------------------------------
+    // EVERY OTHER file that lives at the repository root is served
+    // as a static asset (HTML, CSS, images, fonts, etc.).
+    // The glob "**/*" catches all files; Vercel will ignore the ones
+    // that are already covered by a function build.
+    // --------------------------------------------------------------
+    {
+      "src": "**/*",
+      "use": "@vercel/static"
     }
   ],
+
+  // --------------------------------------------------------------
+  // ROUTES
+  // --------------------------------------------------------------
   "routes": [
+    // 1️⃣  Only paths that begin with /api/ go to the function.
+    {
+      "src": "/api/(.*)",
+      "dest": "src/index.js"
+    },
+
+    // 2️⃣  Everything else is served directly from the static build.
+    //     $1 simply maps the request to the matching file on disk.
     {
       "src": "/(.*)",
-      "dest": "src/index.js"
+      "dest": "/$1"
     }
   ]
 }
