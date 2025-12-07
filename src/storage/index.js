@@ -4,13 +4,14 @@
 // Handles GET (list all storage listings) and POST (create a new listing)
 // -----------------------------------------------------------------------------
 // • Verifies the JWT from the Authorization header.
-// • Makes `latitude` and `longitude` optional – if the client does not send
-//   them we store `null` (the Prisma schema has been changed accordingly).
-// • Returns JSON responses that match the format used throughout the app.
+// • Uses the *optional* latitude/longitude fields (they are now Float? in the
+//   Prisma schema).
+// • Returns JSON in the same shape the front‑end expects.
 // -----------------------------------------------------------------------------
 
-const prisma = require('../lib/prisma');
-const { verifyToken } = require('../lib/jwt');
+// ----------- FIXED IMPORT PATHS -----------------
+const prisma = require('../../lib/prisma');          // <-- two levels up
+const { verifyToken } = require('../../lib/jwt');   // <-- two levels up
 require('dotenv').config();
 
 module.exports = async (req, res) => {
@@ -26,26 +27,48 @@ module.exports = async (req, res) => {
 
   let payload;
   try {
-    payload = verifyToken(token); // should return an object containing at least `userId`
+    payload = verifyToken(token); // must contain at least { userId: … }
   } catch (e) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 
   // --------------------------------------------------------------
-  // 2️⃣  GET – list all storage listings (public endpoint)
+  // 2️⃣  GET – public list of storage listings (optional owner filter)
   // --------------------------------------------------------------
   if (req.method === 'GET') {
     try {
+      // If the client wants only its own listings they can call
+      // /api/storage?ownerId=xxxxx – the UI does not use it now, but we keep it.
+      const urlObj = new URL(req.url, `http://${req.headers.host}`);
+      const ownerId = urlObj.searchParams.get('ownerId');
+
+      const where = ownerId ? { ownerId } : {};
+
       const listings = await prisma.storageListing.findMany({
-        where: { availabilityStatus: 'Available' },
+        where,
+        include: {
+          owner: { select: { id: true, email: true, fullName: true } },
+        },
         orderBy: { createdAt: 'desc' },
       });
-      return res.json({ data: listings });
+
+      // Add the computed “capacidade” field that the UI expects
+      const withCapacidade = listings.map(l => ({
+        ...l,
+        capacidade:
+          l.totalCapacity && l.capacityUnit
+            ? `${l.totalCapacity} ${l.capacityUnit}`
+            : null,
+      }));
+
+      // If an owner filter was supplied we return a plain array,
+      // otherwise we wrap it in { data: … } (what the dashboard expects).
+      return ownerId
+        ? res.json(withCapacidade)
+        : res.json({ data: withCapacidade });
     } catch (e) {
       console.error('[STORAGE GET]', e);
-      return res
-        .status(500)
-        .json({ error: 'Failed to fetch storage listings' });
+      return res.status(500).json({ error: 'Server error' });
     }
   }
 
@@ -53,7 +76,6 @@ module.exports = async (req, res) => {
   // 3️⃣  POST – create a new storage listing (requires auth)
   // --------------------------------------------------------------
   if (req.method === 'POST') {
-    // --- extract fields from the request body -------------------
     const {
       facilityName,
       storageType,
@@ -64,12 +86,12 @@ module.exports = async (req, res) => {
       description,
       addressLine1,
       postalCode,
-      // optional – the front‑end does not supply them yet
+      // Optional coordinates – the front‑end does **not** send them yet.
       latitude,
       longitude,
     } = req.body || {};
 
-    // --- basic validation ---------------------------------------
+    // ---------- Basic required‑field validation ----------
     if (
       !facilityName ||
       !storageType ||
@@ -79,42 +101,53 @@ module.exports = async (req, res) => {
       !addressLine1 ||
       !postalCode
     ) {
-      return res
-        .status(400)
-        .json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // ----------------------------------------------------------
-    // Build the data object for Prisma.
-    // `latitude` and `longitude` are optional (they may be undefined);
-    // Prisma will store `null` because the schema marks them as Float?.
-    // ----------------------------------------------------------
+    // ---------- Build the Prisma create payload ----------
     const data = {
       ownerId: payload.userId,
-      facilityName,
-      storageType,
-      totalCapacity: parseFloat(totalCapacity),
-      // We also set the initial available capacity to the total capacity.
-      availableCapacity: parseFloat(totalCapacity),
-      city,
-      pricingStructure,
-      availabilityStatus: availabilityStatus || 'Available',
-      description,
-      addressLine1,
-      postalCode,
-      // optional coordinates – keep them null if not supplied
+      facilityName: facilityName.trim(),
+      storageType: storageType.trim(),
+      totalCapacity: Number(totalCapacity),
+      // set the initial available capacity to the total capacity
+      availableCapacity: Number(totalCapacity),
+      city: city.trim(),
+      pricingStructure: pricingStructure?.trim() || '',
+      availabilityStatus: (availabilityStatus?.trim() || 'Available'),
+      description: description.trim(),
+      addressLine1: addressLine1.trim(),
+      postalCode: postalCode.trim(),
+      // Optional coordinates – store null if not provided (schema: Float?)
       latitude: typeof latitude === 'number' ? latitude : null,
       longitude: typeof longitude === 'number' ? longitude : null,
     };
 
     try {
-      const listing = await prisma.storageListing.create({ data });
-      return res.status(201).json({ data: listing });
+      const newListing = await prisma.storageListing.create({
+        data,
+        include: {
+          owner: { select: { id: true, email: true, fullName: true } },
+        },
+      });
+
+      // Add the UI‑friendly computed field
+      const response = {
+        ...newListing,
+        capacidade:
+          newListing.totalCapacity && newListing.capacityUnit
+            ? `${newListing.totalCapacity} ${newListing.capacityUnit}`
+            : null,
+      };
+
+      return res.status(201).json({ data: response });
     } catch (e) {
       console.error('[STORAGE POST]', e);
-      return res
-        .status(500)
-        .json({ error: 'Failed to create storage listing' });
+      // P2002 = unique‑constraint violation – keep the same message you had before
+      if (e.code === 'P2002') {
+        return res.status(409).json({ error: 'Duplicate entry' });
+      }
+      return res.status(500).json({ error: 'Server error' });
     }
   }
 
