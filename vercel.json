@@ -1,9 +1,27 @@
 {
   "version": 2,
   "builds": [
-    { "src": "src/index.js", "use": "@vercel/node" }
+    {
+      "src": "src/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "src/**",
+          "lib/**",
+          "prisma/**",
+          "node_modules/**"
+        ]
+      }
+    },
+    {
+      "src": "**/*",
+      "use": "@vercel/static"
+    }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "src/index.js" }
+    {
+      "src": "/api/(.*)",
+      "dest": "src/index.js"
+    }
   ]
 }
