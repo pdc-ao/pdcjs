@@ -8,8 +8,8 @@
 // POST & PATCH stay unchanged.
 // ================================================================
 
-const prisma = require('../lib/prisma');
-const { verifyToken } = require('../lib/jwt');
+const prisma = require('../../lib/prisma');
+const { verifyToken } = require('../../lib/jwt');
 require('dotenv').config(); // loads JWT secret, DB URL, etc.
 
 // ---------- tiny JSON helper (identical to transformation.js) ----------

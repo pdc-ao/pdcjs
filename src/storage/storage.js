@@ -11,8 +11,8 @@
 // Executed via the catch‑all `api/[...slug].js`
 // ===============================================================
 
-const prisma = require('../lib/prisma');
-const { verifyToken } = require('../lib/jwt');
+const prisma = require('../../lib/prisma');
+const { verifyToken } = require('../../lib/jwt');
 require('dotenv').config();
 
 // ---------- Tiny JSON helper ----------

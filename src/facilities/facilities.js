@@ -9,7 +9,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const { verifyToken } = require('../lib/jwt');
+const { verifyToken } = require('../../lib/jwt');
 require('dotenv').config();   // loads JWT secret, DB URL, …
 
 // ------------------- tiny JSON helper (exactly like in transformation.js) -------------------

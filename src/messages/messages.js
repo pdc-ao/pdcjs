@@ -14,8 +14,8 @@
 // The shape matches what dashboard‑messages.html expects.
 // ===============================================================
 
-const prisma = require('../lib/prisma');          // adjust if your lib folder lives elsewhere
-const { verifyToken } = require('../lib/jwt');
+const prisma = require('../../lib/prisma');          // adjust if your lib folder lives elsewhere
+const { verifyToken } = require('../../lib/jwt');
 require('dotenv').config();                       // loads DB URL, JWT secret, etc.
 
 // ---------- Tiny JSON helper ----------

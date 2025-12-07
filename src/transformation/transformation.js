@@ -9,8 +9,8 @@
 // other APIs (products, storage, transport, …).
 // ===============================================================
 
-const prisma = require('../lib/prisma');          // adjust if lib folder is elsewhere
-const { verifyToken } = require('../lib/jwt');
+const prisma = require('../../lib/prisma');          // adjust if lib folder is elsewhere
+const { verifyToken } = require('../../lib/jwt');
 require('dotenv').config();                       // loads PRISMA_DATABASE_URL, JWT secret, etc.
 
 // ---------- Tiny JSON helper ----------

@@ -7,8 +7,8 @@
 // ---------------------------------------------------------------
 // All responses are JSON: { data: [...] } (or { error: … } on failure)
 // --------------------------------------------------------------
-const prisma = require('../lib/prisma');          // adjust if your lib folder lives elsewhere
-const { verifyToken } = require('../lib/jwt');
+const prisma = require('../../lib/prisma');          // adjust if your lib folder lives elsewhere
+const { verifyToken } = require('../../lib/jwt');
 require('dotenv').config();                       // loads PRISMA_DATABASE_URL, JWT secret, etc.
 
 // ---------- Tiny JSON helper ----------
