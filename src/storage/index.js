@@ -1,5 +1,5 @@
-const prisma = require('../../lib/prisma');
-const { verifyToken } = require('../../lib/jwt');
+const prisma = require('../lib/prisma');
+const { verifyToken } = require('../lib/jwt');
 
 require('dotenv').config();
 

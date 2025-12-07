@@ -622,8 +622,8 @@ model StorageListing {
   city               String
   postalCode         String
   country            String   @default("Angola")
-  latitude           Float
-  longitude          Float
+  latitude           Float?
+  longitude          Float?
   imagesUrls         Json?
   availabilityStatus String
   createdAt          DateTime @default(now())
