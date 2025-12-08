@@ -1,70 +1,53 @@
 // -----------------------------------------------------------------------------
 // src/transport/index.js
 // -----------------------------------------------------------------------------
-// Handles GET (list all transport listings) and POST (create a new transport service)
+// End‑points:
+//   GET  /api/transport   → list all transport listings (public)
+//   POST /api/transport   → create a new transport service (requires auth)
 // -----------------------------------------------------------------------------
-// • Authenticated via JWT (required for POST, optional for GET – we still
-//   verify the token because the UI always sends it, but we ignore it for the
-//   listing request.
-// • Returns field names that the front‑end expects (`title`, `vehicle`, `routes`,
-//   `status`). Internally they are stored as `serviceTitle`, `vehicleType`,
-//   `operationalRoutes`, `availabilityStatus`.
-// -----------------------------------------------------------------------------
-// NOTE: The global catch‑all (`src/index.js`) already adds CORS headers and
-//       handles OPTIONS pre‑flight, so we only need the business logic here.
+// • Auth is performed via the JWT in the Authorization header.
+// • The global catch‑all (`src/index.js`) already parses JSON bodies, so we
+//   use `req.body` directly – no manual stream handling.
+// • The Prisma model is `transportListing`; field names are mapped from the UI
+//   (`title`, `vehicle`, `routes`, `status`) to the DB columns.
 // -----------------------------------------------------------------------------
 
-const prisma = require('../../lib/prisma');          // correct relative path
-const { verifyToken } = require('../../lib/jwt');
-require('dotenv').config();
+const prisma = require('../../lib/prisma');          // two levels up from src/transport
+const { verifyToken } = require('../../lib/jwt');  // same
+require('dotenv').config();                       // loads DB URL, JWT secret, etc.
 
 module.exports = async (req, res) => {
   // --------------------------------------------------------------
-  // 1️⃣  Authenticate – we need a valid token for POST.
-  //     For GET we still parse it (the UI always sends it) but we
-  //     don't abort if it is missing – the listings are public.
+  // 1️⃣  Authenticate – extract and verify JWT
   // --------------------------------------------------------------
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
-  let payload = null;
-  if (token) {
-    try {
-      payload = verifyToken(token); // may throw
-    } catch (e) {
-      // If the token is invalid we still allow GET (public), but POST will
-      // later reject because we need a userId.
-      payload = null;
-    }
+  if (!token) {
+    return res.status(401).json({ error: 'Missing token' });
+  }
+
+  let payload;
+  try {
+    payload = verifyToken(token); // must contain at least { userId: … }
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid token' });
   }
 
   // --------------------------------------------------------------
-  // 2️⃣  GET – list all transport listings (public)
+  // 2️⃣  GET – list every transport listing (public)
   // --------------------------------------------------------------
   if (req.method === 'GET') {
     try {
       const listings = await prisma.transportListing.findMany({
         include: {
-          // We only need the transporter’s id for the front‑end filter.
+          // UI only needs the transporter’s id to filter its own services
           transporter: { select: { id: true, email: true, fullName: true } },
         },
         orderBy: { createdAt: 'desc' },
       });
-
-      // Map DB fields to the names the UI expects.
-      const mapped = listings.map(l => ({
-        id: l.id,
-        transporterId: l.transporterId,
-        title: l.serviceTitle,
-        vehicle: l.vehicleType,
-        routes: l.operationalRoutes,
-        status: l.availabilityStatus,
-        // optional extra info (you can expose more if needed)
-        createdAt: l.createdAt,
-        transporter: l.transporter,
-      }));
-
-      return res.json({ data: mapped });
+      // UI expects `{ data: [...] }`
+      return res.json({ data: listings });
     } catch (e) {
       console.error('[TRANSPORT GET]', e);
       return res.status(500).json({ error: 'Server error' });
@@ -72,34 +55,13 @@ module.exports = async (req, res) => {
   }
 
   // --------------------------------------------------------------
-  // 3️⃣  POST – create a new transport service (requires auth)
+  // 3️⃣  POST – create a new transport service (auth required)
   // --------------------------------------------------------------
   if (req.method === 'POST') {
-    // ---------- Ensure we have a valid user ----------
-    if (!payload || !payload.userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    // The global catch‑all already placed the parsed JSON here:
+    const body = req.body || {};
 
-    // ---------- Parse the request body ----------
-    let body;
-    try {
-      body = await new Promise((resolve, reject) => {
-        let raw = '';
-        req.on('data', chunk => (raw += chunk));
-        req.on('end', () => {
-          try {
-            resolve(JSON.parse(raw));
-          } catch (err) {
-            reject(err);
-          }
-        });
-        req.on('error', reject);
-      });
-    } catch (e) {
-      return res.status(400).json({ error: 'Invalid JSON body' });
-    }
-
-    // ---------- Validate required fields ----------
+    // ---- Validate required fields ----
     const required = ['title', 'vehicle', 'routes', 'status'];
     for (const f of required) {
       if (!body[f]) {
@@ -107,15 +69,18 @@ module.exports = async (req, res) => {
       }
     }
 
-    // ---------- Build Prisma payload ----------
+    // ---- Build the Prisma payload (field‑name mapping) ----
     const data = {
+      // Link the service to the logged‑in user
       transporterId: payload.userId,
+
+      // UI → DB column mapping
       serviceTitle: body.title.trim(),
       vehicleType: body.vehicle.trim(),
       operationalRoutes: body.routes.trim(),
       availabilityStatus: body.status.trim(),
 
-      // Default values you may want to expose later:
+      // Optional defaults (feel free to expose them later in the UI)
       baseLocationCity: 'Luanda',
       baseLocationCountry: 'Angola',
       pricingModel: 'Por tonelada',
@@ -123,28 +88,18 @@ module.exports = async (req, res) => {
     };
 
     try {
-      const created = await prisma.transportListing.create({
+      const newService = await prisma.transportListing.create({
         data,
         include: {
           transporter: { select: { id: true, email: true, fullName: true } },
         },
       });
 
-      // Map to front‑end field names before sending back
-      const response = {
-        id: created.id,
-        transporterId: created.transporterId,
-        title: created.serviceTitle,
-        vehicle: created.vehicleType,
-        routes: created.operationalRoutes,
-        status: created.availabilityStatus,
-        createdAt: created.createdAt,
-        transporter: created.transporter,
-      };
-
-      return res.status(201).json({ data: response });
+      // 201 – Created
+      return res.status(201).json({ data: newService });
     } catch (e) {
       console.error('[TRANSPORT POST]', e);
+      // Prisma unique‑constraint violation (e.g. duplicate title)
       if (e.code === 'P2002') {
         return res.status(409).json({ error: 'Duplicate entry' });
       }
