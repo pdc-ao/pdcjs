@@ -62,10 +62,10 @@
   import {
     getSession,
     logout,
+    renderUserInfo,
     getData,
     addItem,
-    updateItem,
-    renderUserInfo
+    updateItem
   } from './js/dashboard.js';
 
   const user = getSession();
@@ -80,7 +80,7 @@
   const table = document.getElementById('procurementTable');
 
   function renderProcurements() {
-    const items = getData(procurementKey) || [];
+    const items = getData(procurementKey);
     table.innerHTML = '';
     items.forEach(p => {
       const row = document.createElement('tr');
@@ -108,15 +108,21 @@
     renderProcurements();
   };
 
-  window.simulateProcurement = function() {
+  // ----------------------------------------------
+  // One‑click, no‑duplicate‑ID helper
+  // ----------------------------------------------
+  window.simulateProcurement = function () {
+    const btn = document.querySelector('button[onclick="simulateProcurement()"]');
+    if (btn) btn.disabled = true;                 // prevent rapid clicks
     const newItem = {
-      id: 'PRC-' + Date.now(),
+      id: 'PRC-' + Date.now() + '-' + Math.random().toString(36).substr(2,4), // highly unique
       product: 'Sementes de Milho',
       quantity: 100,
       status: 'Pendente'
     };
     addItem(procurementKey, newItem);
     renderProcurements();
+    if (btn) btn.disabled = false;
   };
 
   renderProcurements();

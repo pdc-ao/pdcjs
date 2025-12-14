@@ -136,13 +136,11 @@
   }
   
   /* -------------------------------------------------------------
-     6️⃣ **PROCUREMENT DEMO STORAGE HELPERS**
+     6️⃣ PROCUREMENT DEMO STORAGE HELPERS
      -------------------------------------------------------------
-     These three helpers make the Procurement page work completely
-     on the client side, using `localStorage` as a tiny JSON store.
-     - getData(key)      → returns an array (or [] if nothing stored)
-     - addItem(key, obj) → pushes a new object and persists it
-     - updateItem(key, id, patch) → shallow‑merge changes into an existing object
+     All three helpers work with a JSON array stored in `localStorage`
+     under a chosen key (e.g. “pdc_procurements_demo”). They are pure
+     client‑side utilities – no network requests.
      ------------------------------------------------------------- */
   export function getData(key) {
     const raw = localStorage.getItem(key);
@@ -156,7 +154,8 @@
   
   /**
    * Add a new object to the array stored under `key`.
-   * `item` must contain at least a unique `id` field (the UI uses it for actions).
+   * The function guards against duplicate `id`s – if an item with the same
+   * `id` already exists it silently ignores the call.
    */
   export function addItem(key, item) {
     if (!item || typeof item !== 'object') {
@@ -164,6 +163,13 @@
       return;
     }
     const arr = getData(key);
+  
+    // ---- Prevent accidental double‑clicks that would create the same ID ----
+    if (arr.some(it => it.id === item.id)) {
+      console.warn(`addItem – item with id ${item.id} already exists – skipping`);
+      return;
+    }
+  
     arr.push(item);
     try {
       localStorage.setItem(key, JSON.stringify(arr));
@@ -173,7 +179,7 @@
   }
   
   /**
-   * Update an existing object identified by `id`.
+   * Update a stored object that matches `id`.
    * `patch` is a shallow object with the fields you want to change.
    */
   export function updateItem(key, id, patch) {
@@ -197,7 +203,8 @@
   }
   
   /* -------------------------------------------------------------------------
-     End of file – all exported helpers are now available for any page that does:
+     End of file – all exported helpers are now available for any page that
+     does:
      import {
        getSession,
        logout,
