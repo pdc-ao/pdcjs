@@ -10,9 +10,9 @@
 // All responses are JSON { data: … } (or { error: … }).
 // ===============================================================
 
-const prisma = require('../lib/prisma');          // adjust if lib folder lives elsewhere
-const { verifyToken } = require('../lib/jwt');
-require('dotenv').config();                       // loads DB URL, JWT secret, etc.
+const prisma = require('../../lib/prisma');          // ← corrected
+const { verifyToken } = require('../../lib/jwt');    // ← corrected
+require('dotenv').config();
 
 // ---------- Tiny JSON helper ----------
 function json(res, payload, status = 200) {
