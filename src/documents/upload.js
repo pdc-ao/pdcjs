@@ -8,11 +8,10 @@
 // Returns the created Document record (including a temporary fileUrl)
 // ================================================================
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
-const { verifyToken } = require('../lib/jwt');
+const prisma = require('../../lib/prisma');
+const { verifyToken } = require('../../lib/jwt');
 require('dotenv').config();
+
 
 const fs = require('fs');
 const path = require('path');
