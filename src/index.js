@@ -88,6 +88,8 @@ module.exports = async function (req, res) {
 
   // ---------- Body parsing ----------
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    const contentType = req.headers['content-type'] || '';
+    if (contentType.startsWith('application/json')) {
     try {
       req.body = await parseJsonBody(req);
     } catch (e) {
