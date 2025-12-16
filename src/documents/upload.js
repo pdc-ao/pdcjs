@@ -16,7 +16,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const Busboy = require('busboy');
-const { cuid } = require('cuid');   // if not installed, npm i cuid
+const cuid = require('cuid');   // ✅ correct import
 
 // tiny json helper – same style as the other API files
 function json(res, payload, status = 200) {
