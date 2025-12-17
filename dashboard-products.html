@@ -82,11 +82,20 @@
   <div class="modal-content">
     <h3>Editar Produto</h3>
     <form id="editForm">
-      <label>Título: <input type="text" name="title" required /></label><br/>
-      <label>Descrição: <input type="text" name="description" required /></label><br/>
-      <label>Categoria: <input type="text" name="category" required /></label><br/>
+      <label>Produto:  <select name="productId" id="productSelect" required>
+        <option value="">Selecione um produto...</option>
+        </select>
+      </label><br/>
+      <label>#####: <input type="text" name="description" required /></label><br/>
+      <label>#####: <input type="text" name="category" required /></label><br/>
       <label>Preço por unidade: <input type="number" name="price" step="0.01" min="0.01" required /></label><br/>
-      <label>Unidade: <input type="text" name="unit" value="kg" required /></label><br/>
+      <label>Unidade:
+        <select name="unit" required>
+          <option value="kg">Quilograma (kg)</option>
+          <option value="ton">Tonelada (ton)</option>
+          <option value="un">Unidade (un)</option>
+        </select>
+      </label><br/>
       <label>Quantidade disponível: <input type="number" name="quantity" step="1" min="0" required /></label><br/>
       <label>Status: 
         <select name="status">
