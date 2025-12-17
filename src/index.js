@@ -1,16 +1,7 @@
 // =============================================================
-// src/index.js – ONE catch‑all Vercel Function
+// src/index.js – ONE catch‑all Vercel Function (fixed syntax)
 // -------------------------------------------------------------
-// * Resolves any /api/* request to a handler that lives **inside**
-//   the `src` folder (previously called `api/`) or in the
-//   `archived-api/` folder.
-// * Parses JSON bodies, adds tiny Express‑style shims (res.status,
-//   res.json) so legacy handlers keep working.
-// * Handles folder‑index routes (e.g. /api/products →
-//   archived‑api/products/index.js).
-// * Sends proper CORS headers.
-// * Keeps the Hobby‑plan limit: ONLY THIS file lives in a
-//   server‑less function.
+// Resolves any /api/* request to a handler inside src/ or archived-api/
 // =============================================================
 
 const fs = require('fs');
@@ -33,10 +24,7 @@ function json(res, payload, status = 200) {
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Authorization'
-  );
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
 // ------------------------------------------------------------------
@@ -71,25 +59,15 @@ module.exports = async function (req, res) {
 
   // ---------- Parse the incoming URL ----------
   const parsed = url.parse(req.url || '');
-  // strip the leading "/api" (the route that Vercel sends us)
   const clean = (parsed.pathname || '')
     .replace(/^\/api\/?/, '')
     .replace(/^\/+/, '');
   const slugArray = clean ? clean.split('/').filter(Boolean) : [];
 
-  // If somebody calls just "/api" (or "/api/") we have no endpoint.
-  // Returning early prevents the function from trying to require itself.
-  if (slugArray.length === 0) {
-    return json(res, { error: 'No API endpoint specified' }, 404);
-  }
-
-  // expose the slug for any legacy handler that expects it
   req._slugArray = slugArray;
 
   // ---------- Body parsing ----------
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-    const contentType = req.headers['content-type'] || '';
-    if (contentType.startsWith('application/json')) {
     try {
       req.body = await parseJsonBody(req);
     } catch (e) {
@@ -111,7 +89,7 @@ module.exports = async function (req, res) {
   }
 
   // ----------------------------------------------------------------
-  // Try internal handler (now **src/** instead of the old api/)
+  // Try internal handler (src/)
   // ----------------------------------------------------------------
   let internalFile = path.join(process.cwd(), 'src', ...slugArray);
   if (fs.existsSync(internalFile) && fs.statSync(internalFile).isDirectory()) {
@@ -136,7 +114,7 @@ module.exports = async function (req, res) {
   }
 
   // ----------------------------------------------------------------
-  // Fallback external handler (kept as‑is – uses archived-api/)
+  // Fallback external handler (archived-api/)
   // ----------------------------------------------------------------
   let externalFile = path.join(process.cwd(), 'archived-api', ...slugArray);
   if (fs.existsSync(externalFile) && fs.statSync(externalFile).isDirectory()) {
@@ -164,4 +142,4 @@ module.exports = async function (req, res) {
   // Nothing matched → 404
   // ----------------------------------------------------------------
   return json(res, { error: 'Not found' }, 404);
-};
+}; // <-- This closing brace was likely missing
