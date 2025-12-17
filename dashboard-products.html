@@ -66,12 +66,23 @@
   <div class="card">
     <h2>Adicionar Novo Produto</h2>
     <form id="productForm">
-      <label>Título: <input type="text" name="title" required /></label><br/>
-      <label>Descrição: <input type="text" name="description" required /></label><br/>
-      <label>Categoria: <input type="text" name="category" required /></label><br/>
+      <label>Produto: <input type="text" name="title" required /></label><br/>
+      <label>#####: <input type="text" name="description" required /></label><br/>
+      <label>#####: <input type="text" name="category" required /></label><br/>
       <label>Preço por unidade: <input type="number" name="price" required /></label><br/>
-      <label>Unidade: <input type="text" name="unit" value="kg" required /></label><br/>
-      <label>Quantidade disponível: <input type="number" name="quantity" required /></label><br/>
+      <label>Unidade:
+        <select name="unit" required>
+          <option value="kg">Quilograma (kg)</option>
+          <option value="ton">Tonelada (ton)</option>
+          <option value="un">Unidade (un)</option>
+        </select></label><br/>
+      <label>Quantidade disponível: <input type="number" name="quantity" step="1" min="0" required /></label><br/>
+      <label>Status: 
+        <select name="status">
+          <option value="Active">Ativo</option>
+          <option value="Inactive">Inativo</option>
+        </select>
+      </label><br/>
       <button class="btn btn-primary" type="submit">Publicar Produto</button>
     </form>
   </div>
