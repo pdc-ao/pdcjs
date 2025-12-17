@@ -66,7 +66,10 @@
   <div class="card">
     <h2>Adicionar Novo Produto</h2>
     <form id="productForm">
-      <label>Produto: <input type="text" name="title" required /></label><br/>
+      <label>Produto:
+      <select name="productId" id="productSelect" required>
+        <option value="">Selecione um produto...</option>
+      </select></label><br/>
       <label>#####: <input type="text" name="description" required /></label><br/>
       <label>#####: <input type="text" name="category" required /></label><br/>
       <label>Preço por unidade: <input type="number" name="price" required /></label><br/>
