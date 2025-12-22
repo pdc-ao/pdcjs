@@ -61,7 +61,15 @@
     <h2>Adicionar Novo Serviço</h2>
     <form id="transformationForm">
       <label>Nome do Serviço: <input type="text" name="name" required /></label><br/>
-      <label>Tipo de Serviço: <input type="text" name="type" value="Secagem" required /></label><br/>
+      <label>Tipo de Servico:
+    <select name="type" required>
+    <option value="Secagem">Secagem</option>
+    <option value="Moagem">Moagem</option>
+    <option value="Corte">Corte</option>
+    <option value="Desidratacao">Desidratacao</option>
+    <option value="Outras">Outras</option>
+  </select>
+  </label><br/>
       <label>Localização: <input type="text" name="location" value="Luanda" required /></label><br/>
       <label>Status: 
         <select name="status">
