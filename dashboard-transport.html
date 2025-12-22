@@ -50,7 +50,7 @@
     <h2>Meus Serviços de Transporte</h2>
     <table>
       <thead>
-        <tr><th>Serviço</th><th>Veículo</th><th>Rotas</th><th>Preco</th><th>Status</th><th>Ações</th></tr>
+        <tr><th>Serviço</th><th>Veículo</th><th>Rotas</th><th>Status</th><th>Preco</th><th>Ações</th></tr>
       </thead>
       <tbody id="transportTableBody"></tbody>
     </table>
@@ -61,8 +61,23 @@
     <h2>Adicionar Novo Serviço</h2>
     <form id="transportForm">
       <label>Título do Serviço: <input type="text" name="title" required /></label><br/>
-      <label>Tipo de Veículo: <input type="text" name="vehicle" value="Caminhão Frigorífico" required /></label><br/>
-      <label>Rotas Operacionais: <input type="text" name="routes" required /></label><br/>
+         <label>Tipo de Veiculo:
+    <select name="type" required>
+    <option value="Frigorífica">Frigorífica</option>
+    <option value="Trailer">Trailer</option>
+    <option value="Contentor">Contentor</option>
+    <option value="Outro">Outro</option>
+      </select>
+      </label><br/>
+         <label>Rotas operacionais:
+    <select name="type" required>
+    <option value="Todas Nacional">Todas Nacional</option>
+    <option value="Todas Internacional">Todas Internacional</option>
+    <option value="Luanda">Luanda</option>
+    <option value="Sul de Luanda">Sul de Luanda</option>
+    <option value="Outras">Outras</option>
+  </select>
+  </label><br/>
       <label>Preco: <input type="text" name="routes" required /></label><br/>
       <label>Status: 
         <select name="status">
