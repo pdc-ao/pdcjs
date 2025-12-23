@@ -48,9 +48,13 @@
   <div class="container">© <span id="yearFac"></span> AgriConnect Angola</div>
 </footer>
 
-<script src="js/app.js"></script>
-<script>
-  document.getElementById('yearFac').innerText = new Date().getFullYear();
+<script type="module">
+  // Import required helper functions
+  import { getSession, renderUserInfo, fetchJSON, escapeHtml } from './js/dashboard.js';
+
+  // Render user info and set current year
+  renderUserInfo('#userInfo');
+  document.getElementById('yearFac').textContent = new Date().getFullYear();
 
   // logout handler
   document.getElementById('logoutBtn').addEventListener('click', (e) => {
@@ -60,23 +64,35 @@
     location.href = 'auth.html';
   });
 
-  (async function loadFacilities() {
-    const user = JSON.parse(localStorage.getItem('pdc_user_data'));
+  // Load facilities when page loads
+  async function loadFacilities() {
+    const user = getSession();
     if (!user) {
       document.getElementById('facilitiesList').innerHTML = '<div class="muted">Faça login para ver instalações.</div>';
       return;
     }
     try {
-      const facilities = await fetchJSON(`/api/facilities?ownerId=${encodeURIComponent(user.id)}`).catch(()=>[]);
+      const token = localStorage.getItem('pdc_auth_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const response = await fetch(`/api/facilities?ownerId=${encodeURIComponent(user.id)}`, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const facilities = await response.json();
       const grid = document.getElementById('facilitiesList'); 
       grid.innerHTML = '';
+      
       if (!facilities || facilities.length === 0) { 
-        document.getElementById('facMsg').textContent='Nenhuma instalação encontrada.'; 
+        document.getElementById('facMsg').textContent = 'Nenhuma instalação encontrada.'; 
         return; 
       }
+      
       facilities.forEach(f => {
         const el = document.createElement('div'); 
-        el.className='card';
+        el.className = 'card';
         el.innerHTML = `
           <div>
             <h3 class="card-title"><a href="facility-detail.html?id=${f.id}">${escapeHtml(f.facilityName)}</a></h3>
@@ -89,37 +105,74 @@
           </div>`;
         grid.appendChild(el);
       });
+      
+      document.getElementById('facMsg').textContent = '';
+      
     } catch (err) {
-      document.getElementById('facilitiesList').innerHTML = '<div class="muted">Erro ao carregar instalações</div>';
-    }
-  })();
-
-  async function deleteFacility(id) {
-    if (!confirm('Tem certeza que deseja excluir esta instalação?')) return;
-    const res = await fetch(`/api/facilities/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      alert('Instalação excluída');
-      location.reload();
-    } else {
-      alert('Erro ao excluir');
+      console.error('Error loading facilities:', err);
+      document.getElementById('facilitiesList').innerHTML = '<div class="muted">Erro ao carregar instalações: ' + escapeHtml(err.message) + '</div>';
     }
   }
 
-  async function editFacility(id) {
+  // Delete facility function
+  window.deleteFacility = async function(id) {
+    if (!confirm('Tem certeza que deseja excluir esta instalação?')) return;
+    
+    try {
+      const token = localStorage.getItem('pdc_auth_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const res = await fetch(`/api/facilities/${id}`, { 
+        method: 'DELETE', 
+        headers 
+      });
+      
+      if (res.ok) {
+        alert('Instalação excluída');
+        await loadFacilities(); // Reload the list
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert('Erro ao excluir: ' + (errorData.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Erro ao excluir instalação: ' + err.message);
+    }
+  }
+
+  // Edit facility function
+  window.editFacility = async function(id) {
     const newName = prompt('Novo nome da instalação:');
     if (!newName) return;
-    const res = await fetch(`/api/facilities/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ facilityName: newName })
-    });
-    if (res.ok) {
-      alert('Instalação atualizada');
-      location.reload();
-    } else {
-      alert('Erro ao atualizar');
+    
+    try {
+      const token = localStorage.getItem('pdc_auth_token');
+      const headers = { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json' 
+      };
+      
+      const res = await fetch(`/api/facilities/${id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ facilityName: newName })
+      });
+      
+      if (res.ok) {
+        alert('Instalação atualizada');
+        await loadFacilities(); // Reload the list
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert('Erro ao atualizar: ' + (errorData.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Edit error:', err);
+      alert('Erro ao atualizar instalação: ' + err.message);
     }
   }
+
+  // Load facilities when page loads
+  loadFacilities();
 </script>
 </body>
 </html>
