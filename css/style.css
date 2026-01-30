@@ -1,7 +1,8 @@
 /* -------------------------------------------------
-   01. Root variables – easy theme tweaking
+   01. Design Tokens (colors, spacing, typography)
    ------------------------------------------------- */
 :root {
+  /* Brand palette */
   --clr-primary-900: #0f1c2e;
   --clr-primary-700: #1a2f4d;
   --clr-primary-500: #2b4a78;
@@ -11,331 +12,332 @@
   --clr-white: #fff;
   --clr-gray-900: #333;
   --clr-gray-600: #777;
-  --clr-bg: #f4f4f4;
+  --clr-bg: #f7fafc;
+  --clr-muted: #6b7280;
+  --clr-accent: #16a34a;
+  --clr-accent-dark: #15803d;
 
-  --radius: .5rem;
-  --transition: .3s ease;
+  /* Layout */
+  --max-width: 1100px;
+
+  /* Typography */
   --ff-base: 'Montserrat', sans-serif;
+  --fs-base: 16px;
+  --fs-sm: 14px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --lh-base: 1.5;
+  --lh-tight: 1.2;
+
+  /* Spacing */
+  --space-1: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
 }
 
 /* -------------------------------------------------
-   02. Reset & base
+   02. Global reset & base styles
    ------------------------------------------------- */
-*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-html { scroll-behavior: smooth; }
+*,
+*::before,
+*::after { box-sizing: border-box; }
+html, body { height: 100%; }
 body {
+  margin: 0;
   font-family: var(--ff-base);
-  line-height: 1.6;
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
   background: var(--clr-bg);
   color: var(--clr-gray-900);
 }
 
 /* -------------------------------------------------
-   03. Utility container
+   03. Layout helpers
    ------------------------------------------------- */
 .container {
-  width: 90%;
-  max-width: 1200px;
-  margin-inline: auto;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--space-5);
+}
+section { padding: var(--space-6) 0; }
+section.container { padding: var(--space-6) var(--space-5); }
+.muted { color: var(--clr-muted); }
+
+/* -------------------------------------------------
+   04. Header & navigation (Flexbox)
+   ------------------------------------------------- */
+.site-header {
+  background: linear-gradient(90deg, var(--clr-primary-900), #0ea5e9);
+  color: var(--clr-white);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--clr-white);
+  text-decoration: none;
+}
+.logo {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: var(--clr-primary-500);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--clr-white);
+}
+.brand-name { font-weight: 600; }
+
+.site-nav {
+  position: relative;
+}
+.nav__list {
+  list-style: none;
+  display: flex;
+  gap: var(--space-3);
+}
+.nav__list a {
+  color: var(--clr-white);
+  text-decoration: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 6px;
+}
+.nav__list a:hover { background: rgba(255,255,255,.12); }
+.nav__list a:focus-visible {
+  outline: 2px solid var(--clr-white);
+  outline-offset: 2px;
+}
+
+/* Mobile burger – hidden on desktop */
+.nav__toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--clr-white);
+  font-size: 1.5rem;
+}
+
+/* When the list is opened on mobile */
+.nav__list--open {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: var(--clr-primary-900);
+  padding: var(--space-3);
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 /* -------------------------------------------------
-   04. Buttons (primary, secondary, outline)
+   05. Hero (two‑column Flexbox)
    ------------------------------------------------- */
-.btn{
-  display:inline-block;
-  padding:.75rem 1.5rem;
-  border-radius:var(--radius);
-  font-weight:600;
-  text-align:center;
-  cursor:pointer;
-  transition:var(--transition);
-  border:none;
+.hero {
+  background: linear-gradient(90deg, var(--clr-primary-900), #0ea5e9);
+  color: var(--clr-white);
+  text-align: center;
+  padding: 4rem 0;
 }
-.btn--primary{
-  background:var(--clr-primary-900);
-  color:var(--clr-white);
+.hero__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2rem;
 }
-.btn--primary:hover{background:var(--clr-primary-700);}
+.hero__text { flex: 1 1 300px; }
+.hero__img  { flex: 1 1 300px; text-align: center; }
+.hero__img img { max-width: 100%; height: auto; }
+.hero h1 { font-size: var(--fs-2xl); margin-bottom: var(--space-3); }
+.lead { font-size: var(--fs-lg); opacity: .95; }
 
-.btn--secondary{
-  background:var(--clr-primary-500);
-  color:var(--clr-white);
+/* -------------------------------------------------
+   06. Buttons (primary & outline)
+   ------------------------------------------------- */
+.btn {
+  display: inline-block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
 }
-.btn--secondary:hover{background:var(--clr-primary-300);}
+.btn-primary {
+  background: var(--clr-white);
+  color: var(--clr-primary-900);
+}
+.btn-primary:hover { background: #f8fafc; }
+.btn-outline {
+  background: transparent;
+  color: var(--clr-white);
+  border: 1px solid rgba(255,255,255,.3);
+}
+.btn-outline:hover { background: rgba(255,255,255,.12); }
+.btn:focus-visible { outline: 2px solid #0ea5e9; outline-offset: 2px; }
 
-.btn--outline{
-  background:transparent;
-  color:var(--clr-primary-900);
-  border:2px solid var(--clr-primary-900);
+/* -------------------------------------------------
+   07. Sections (titles, backgrounds)
+   ------------------------------------------------- */
+.section__title {
+  font-size: var(--fs-2xl);
+  color: var(--clr-primary-900);
+  text-align: center;
+  margin-bottom: var(--space-5);
 }
-.btn--outline:hover{
-  background:var(--clr-primary-100);
+.section--alt { background: var(--clr-primary-100); }
+
+/* -------------------------------------------------
+   08. Features (grid of cards)
+   ------------------------------------------------- */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.feature-card {
+  background: var(--clr-white);
+  border: 1px solid var(--clr-primary-100);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,.07);
+}
+.feature-emoji { font-size: 26px; margin-bottom: .5rem; }
+.feature-card h3 { margin:.5rem 0; font-size: 1.2rem; color: var(--clr-primary-900); }
+
+/* -------------------------------------------------
+   09. Product grid (cards)
+   ------------------------------------------------- */
+.grid.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+  gap: var(--space-3);
+}
+.product-card {
+  background: var(--clr-white);
+  border: 1px solid var(--clr-primary-100);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  box-shadow: 0 2px 6px rgba(0,0,0,.07);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.product-card img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.product-card .info {
+  padding: .75rem 0;
+}
+.product-card .info h4 {
+  margin: 0 0 .5rem;
+  font-size: var(--fs-lg);
+  color: var(--clr-primary-900);
+}
+.product-card .info p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--clr-muted);
 }
 
 /* -------------------------------------------------
-   05. Header & navigation
+   10. Call‑to‑action (sign‑up) – Flexbox same as hero
    ------------------------------------------------- */
-.site-header{
-  background:var(--clr-primary-900);
-  color:var(--clr-white);
-  padding:.8rem 0;
-  position:sticky;
-  top:0;
-  z-index:10;
+.cta-section {
+  background: var(--clr-primary-500);
+  color: var(--clr-white);
+  padding: 4rem 0;
 }
-.header__inner{display:flex; align-items:center; justify-content:space-between;}
-.logo{
-  font-size:1.8rem;
-  font-weight:600;
-  color:inherit;
-  text-decoration:none;
+.cta__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2rem;
 }
-.site-nav{
-  position:relative;
-}
-.nav__list{
-  list-style:none;
-  display:flex;
-  gap:1.5rem;
-}
-.nav__list a{
-  color:var(--clr-white);
-  text-decoration:none;
-  font-weight:600;
-  transition:var(--transition);
-}
-.nav__list a:hover{color:var(--clr-primary-300);}
-.nav__toggle{
-  display:none;
-  background:transparent;
-  border:none;
-  color:var(--clr-white);
-  font-size:1.5rem;
-}
-
-/* Mobile menu – hidden by default */
-.nav__list--open{
-  display:flex;
-  flex-direction:column;
-  position:absolute;
-  right:0;
-  top:100%;
-  background:var(--clr-primary-900);
-  padding:.5rem 1rem;
-  border-radius:0 0 var(--radius) var(--radius);
-}
+.cta__text { flex: 1 1 300px; }
+.cta__img  { flex: 1 1 300px; text-align: center; }
+.cta__img img { max-width: 100%; height: auto; }
 
 /* -------------------------------------------------
-   06. Hero section
+   11. Contact form (grid‑like)
    ------------------------------------------------- */
-.hero{
-  background:linear-gradient(135deg,var(--clr-primary-900),var(--clr-primary-500));
-  color:var(--clr-white);
-  padding:4rem 0 3rem;
+.contact-form {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
-.hero__grid{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:2rem;
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
-.hero__text{
-  flex:1 1 300px;
+.form-group {
+  flex: 1 1 260px;
+  display: flex;
+  flex-direction: column;
 }
-.hero__text h1{font-size:2.5rem; margin-bottom:.8rem;}
-.hero__text .lead{font-size:1.1rem; margin-bottom:1.5rem;}
-.hero__img{
-  flex:1 1 300px;
-  text-align:center;
-}
-.hero__img img{max-width:100%; height:auto;}
-
-/* -------------------------------------------------
-   07. Section titles & generic sections
-   ------------------------------------------------- */
-.section{
-  padding:4rem 0;
-}
-.section--alt{
-  background:var(--clr-primary-100);
-}
-.section__title{
-  text-align:center;
-  font-size:2rem;
-  color:var(--clr-primary-900);
-  margin-bottom:2rem;
-}
-
-/* -------------------------------------------------
-   08. Features (How it works) – cards with icons
-   ------------------------------------------------- */
-.features{
-  display:flex;
-  flex-wrap:wrap;
-  gap:2rem;
-  justify-content:center;
-}
-.feature{
-  background:var(--clr-white);
-  border-radius:var(--radius);
-  padding:1.5rem;
-  flex:1 1 220px;
-  text-align:center;
-  box-shadow:0 2px 6px rgba(0,0,0,.1);
-  transition:var(--transition);
-}
-.feature i{
-  width:48px; height:48px;
-  color:var(--clr-primary-700);
-  margin-bottom:.5rem;
-}
-.feature h3{margin:.5rem 0; font-size:1.2rem; color:var(--clr-primary-900);}
-.feature:hover{transform:translateY(-4px);}
-
-/* -------------------------------------------------
-   09. Product grid – each card is injected by JS
-   ------------------------------------------------- */
-.product-grid{
-  display:flex;
-  flex-wrap:wrap;
-  gap:1.5rem;
-  justify-content:center;
-}
-.product-card{
-  background:var(--clr-white);
-  border-radius:var(--radius);
-  width:260px;
-  overflow:hidden;
-  box-shadow:0 2px 6px rgba(0,0,0,.1);
-  transition:var(--transition);
-  display:flex;
-  flex-direction:column;
-}
-.product-card:hover{transform:translateY(-4px);}
-
-/* image inside product card */
-.product-card img{
-  width:100%;
-  height:150px;
-  object-fit:cover;
-}
-
-/* product info */
-.product-card .info{
-  padding:1rem;
-  flex:1;
-}
-.product-card .info h4{
-  margin:0 0 .5rem;
-  font-size:1.1rem;
-  color:var(--clr-primary-900);
-}
-.product-card .info p{
-  font-size:.9rem;
-  color:var(--clr-gray-600);
-}
-
-/* -------------------------------------------------
-   10. Call‑to‑action (sign‑up) – similar to hero
-   ------------------------------------------------- */
-.cta{
-  background:var(--clr-primary-500);
-  color:var(--clr-white);
-  padding:4rem 0;
-}
-.cta__grid{
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:2rem;
-}
-.cta__text{
-  flex:1 1 300px;
-}
-.cta__text h2{font-size:2rem; margin-bottom:.8rem;}
-.cta__img{
-  flex:1 1 300px;
-  text-align:center;
-}
-.cta__img img{max-width:100%;}
-
-/* -------------------------------------------------
-   11. Contact form – 2‑column on desktop, stacked on mobile
-   ------------------------------------------------- */
-.contact-form{
-  max-width:720px;
-  margin-inline:auto;
-  display:flex;
-  flex-direction:column;
-  gap:1rem;
-}
-.form-row{
-  display:flex;
-  flex-wrap:wrap;
-  gap:1rem;
-}
-.form-group{
-  flex:1 1 260px;
-  display:flex;
-  flex-direction:column;
-}
-.form-group label{
-  margin-bottom:.3rem;
-  font-weight:600;
-  color:var(--clr-primary-900);
+.form-group label {
+  margin-bottom: .3rem;
+  font-weight: 600;
+  color: var(--clr-muted);
 }
 .form-group input,
-.form-group textarea{
-  padding:.75rem;
-  border:1px solid var(--clr-gray-600);
-  border-radius:var(--radius);
-  font-family:inherit;
-  transition:var(--transition);
+.form-group textarea,
+.form-group select {
+  padding: var(--space-2);
+  border: 1px solid var(--clr-primary-100);
+  border-radius: var(--radius);
+  background: var(--clr-white);
 }
-.form-group input:focus,
-.form-group textarea:focus{
-  outline:none;
-  border-color:var(--clr-primary-500);
-  box-shadow:0 0 0 3px rgba(44,73,120,.15);
-}
-
-/* message feedback */
-.msg{
-  margin-top:.5rem;
-  font-size:.9rem;
-}
+.form-group textarea { min-height: 120px; resize: vertical; }
+.form-group ::placeholder { color: #9aa0a6; }
+.form-actions { margin-top: var(--space-3); }
+.form-error { color: #b91c1c; }
 
 /* -------------------------------------------------
    12. Footer
    ------------------------------------------------- */
-.site-footer{
-  background:var(--clr-primary-900);
-  color:var(--clr-white);
-  text-align:center;
-  padding:1.5rem 0;
+.site-footer {
+  background: var(--clr-white);
+  border-top: 1px solid var(--clr-primary-100);
+  padding: 1.5rem 0;
 }
+.site-footer .container { text-align: center; }
 
 /* -------------------------------------------------
-   13. Responsive break‑points
+   13. Responsive tweaks
    ------------------------------------------------- */
-@media (max-width:768px){
-  .nav__list{display:none;}
-  .nav__toggle{display:block;}
+@media (max-width: 720px) {
+  .header-inner { padding: var(--space-2) var(--space-4); }
+  .hero, .cta-section { padding: 3rem 1rem; }
+  .brand-name { display: none; }
+  .nav__list { flex-wrap: wrap; gap: var(--space-2); }
+  .nav__toggle { display: block; }
+  .nav__list { display: none; }           /* hidden until burger is clicked */
   .hero__grid,
-  .cta__grid{
-    flex-direction:column;
-    text-align:center;
-  }
-  .hero__text,
-  .cta__text,
-  .hero__img,
-  .cta__img{
-    flex:1 1 auto;
-  }
-  .features{justify-content:center;}
+  .cta__grid { flex-direction: column; text-align: center; }
 }
-@media (max-width:480px){
-  .hero__text h1{font-size:2rem;}
-  .btn{width:100%;}
+@media (max-width: 480px) {
+  .hero h1 { font-size: 2rem; }
+  .btn { width: 100%; }
 }
