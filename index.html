@@ -1,150 +1,186 @@
-<!doctype html>
-<html lang="pt-PT">
+<!DOCTYPE html>
+<html lang="pt">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AgriConnect Angola</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgriConnect Angola – Conectando Produtores e Consumidores</title>
+
+  <!-- Google Font (Montserrat – modern & readable) -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
+
+  <!-- Feather icons (menu, X, check, etc.) -->
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+
+  <!-- Your stylesheet (the one you’ll add below) -->
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
+<!-------------------------------  HEADER  ------------------------------->
 <header class="site-header">
-  <div class="container header-inner">
-    <a class="brand" href="index.html">
-      <span class="logo">A</span>
-      <span class="brand-name">AgriConnect Angola</span>
-    </a>
-    <nav class="main-nav" id="mainNav">
-      <a href="auth.html" id="authLink">Entrar / Registrar</a>
-      <a href="about.html">Sobre Nós</a>
-      <a href="contact.html">Contactos</a>
+  <div class="container header__inner">
+    <a href="#" class="logo">AgriConnect Angola</a>
+
+    <nav class="site-nav" aria-label="Main navigation">
+      <ul class="nav__list">
+        <li><a href="#sobre">Sobre Nós</a></li>
+        <li><a href="#produtos">Produtos</a></li>
+        <li><a href="#contacto">Contactos</a></li>
+        <li><a href="auth.html" class="btn btn--outline">Entrar / Registrar</a></li>
+      </ul>
+
+      <!-- Mobile burger button -->
+      <button class="nav__toggle" aria-label="Toggle menu">
+        <i data-feather="menu"></i>
+      </button>
     </nav>
   </div>
 </header>
 
-<main>
-  <section class="hero">
-    <div class="container">
+<!-------------------------------  HERO  ------------------------------->
+<section class="hero">
+  <div class="container hero__grid">
+    <div class="hero__text">
       <h1>Conectando Produtores e Consumidores em Angola</h1>
-      <p class="lead">A maior plataforma digital agrícola de Angola. Conecte-se com produtores, encontre armazenamento e transporte.</p>
-      <div class="cta">
-        <a class="btn btn-primary" href="auth.html">Começar Agora</a>
-        <a class="btn btn-outline" href="products.html">Ver Produtos</a>
-      </div>
+      <p class="lead">
+        A maior plataforma digital agrícola de Angola. Conecte‑se com produtores,
+        encontre armazenamento e transporte.
+      </p>
+      <a href="#cadastro" class="btn btn--primary">Começar Agora</a>
+      <a href="#produtos" class="btn btn--secondary">Ver Produtos</a>
     </div>
-  </section>
 
-  <section class="features container">
-    <h2>Como Funciona</h2>
-    <div class="grid features-grid">
-      <article class="feature-card"><div class="feature-emoji">🌱</div><h3>Produtores</h3><p>Venda produtos diretamente ao consumidor.</p></article>
-      <article class="feature-card"><div class="feature-emoji">🛒</div><h3>Consumidores</h3><p>Compre produtos frescos e locais.</p></article>
-      <article class="feature-card"><div class="feature-emoji">🏭</div><h3>Armazenamento</h3><p>Encontre armazéns e serviços de armazenagem.</p></article>
-      <article class="feature-card"><div class="feature-emoji">🚚</div><h3>Transporte</h3><p>Conecte-se com transportadores confiáveis.</p></article>
+    <!-- Optional illustration / image -->
+    <div class="hero__img">
+      <img src="img/hero-illustration.svg" alt="Agricultura Angola">
     </div>
-  </section>
+  </div>
+</section>
 
-  <section class="container">
-    <h2>Últimos Produtos</h2>
-    <div id="homeProducts" class="grid cards-grid"></div>
-    <div id="homeMsg" class="muted"></div>
-    <!-- Optional search bar for logged-in users -->
-    <div id="searchSection" style="margin-top:1rem; display:none;">
-      <input type="text" id="searchInput" placeholder="Pesquisar produtos..." />
-      <button id="searchBtn" class="btn btn-primary">Pesquisar</button>
-    </div>
-  </section>
-
-  <section class="cta-section">
-    <div class="container">
-      <h2>Pronto para revolucionar o seu negócio agrícola?</h2>
-      <a class="btn btn-primary" href="auth.html">Cadastre-se Gratuitamente</a>
-    </div>
-  </section>
-</main>
-
-<!-- ... about, contact, FAQ, social sections unchanged ... -->
-
-<footer class="site-footer">
+<!-------------------------------  HOW IT WORKS  ------------------------------->
+<section id="como-funciona" class="section section--alt">
   <div class="container">
+    <h2 class="section__title">Como Funciona</h2>
+
+    <div class="features">
+      <article class="feature">
+        <i data-feather="leaf"></i>
+        <h3>Produtores</h3>
+        <p>Venda produtos diretamente ao consumidor.</p>
+      </article>
+
+      <article class="feature">
+        <i data-feather="shopping-cart"></i>
+        <h3>Consumidores</h3>
+        <p>Compre produtos frescos e locais.</p>
+      </article>
+
+      <article class="feature">
+        <i data-feather="warehouse"></i>
+        <h3>Armazenamento</h3>
+        <p>Encontre armazéns e serviços de armazenagem.</p>
+      </article>
+
+      <article class="feature">
+        <i data-feather="truck"></i>
+        <h3>Transporte</h3>
+        <p>Conecte‑se com transportadores confiáveis.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-------------------------------  LATEST PRODUCTS  ------------------------------->
+<section id="produtos" class="section">
+  <div class="container">
+    <h2 class="section__title">Últimos Produtos</h2>
+
+    <div id="homeProducts" class="product-grid">
+      <!-- JS will inject <article class="product-card"> … </article> -->
+    </div>
+
+    <p id="homeMsg" class="msg"></p>
+  </div>
+</section>
+
+<!-------------------------------  CALL‑TO‑ACTION (SIGN‑UP)  ------------------------------->
+<section id="cadastro" class="cta">
+  <div class="container cta__grid">
+    <div class="cta__text">
+      <h2>Pronto para revolucionar o seu negócio agrícola?</h2>
+      <p>Cadastre‑se Gratuitamente e comece a vender ou comprar hoje mesmo.</p>
+      <a href="auth.html" class="btn btn--primary">Cadastrar</a>
+    </div>
+
+    <div class="cta__img">
+      <img src="img/cta-illustration.svg" alt="Signup illustration">
+    </div>
+  </div>
+</section>
+
+<!-------------------------------  CONTACT FORM  ------------------------------->
+<section id="contacto" class="section section--alt">
+  <div class="container">
+    <h2 class="section__title">Contacte‑nos</h2>
+
+    <form id="contactForm" class="contact-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="name">Nome</label>
+          <input type="text" id="name" name="name" placeholder="Seu nome" required>
+        </div>
+
+        <div class="form-group">
+          <label for="email">E‑mail</label>
+          <input type="email" id="email" name="email" placeholder="seu@email.com" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="subject">Assunto</label>
+        <input type="text" id="subject" name="subject" placeholder="Assunto da mensagem" required>
+      </div>
+
+      <div class="form-group">
+        <label for="message">Mensagem</label>
+        <textarea id="message" name="message" rows="5" placeholder="Escreva sua mensagem..." required></textarea>
+      </div>
+
+      <button type="submit" class="btn btn--primary">Enviar Mensagem</button>
+      <p id="contactMsg" class="msg"></p>
+    </form>
+  </div>
+</section>
+
+<!-------------------------------  FOOTER  ------------------------------->
+<footer class="site-footer">
+  <div class="container footer__inner">
     <p>© <span id="yearHome"></span> AgriConnect Angola — Todos os direitos reservados.</p>
   </div>
 </footer>
 
-<script src="js/api-bridge.js"></script>
-<script src="js/app.js"></script>
+<!-------------------------------  SCRIPTS  ------------------------------->
 <script>
-  // year
+  // Feather icons
+  feather.replace();
+
+  // Mobile nav toggle
+  const navToggle = document.querySelector('.nav__toggle');
+  const navList   = document.querySelector('.nav__list');
+  navToggle.addEventListener('click', () => {
+    navList.classList.toggle('nav__list--open');
+    const icon = navToggle.querySelector('i');
+    icon.dataset.feather = navList.classList.contains('nav__list--open') ? 'x' : 'menu';
+    feather.replace();
+  });
+
+  // Footer year (keeps the same logic you already have)
   document.getElementById('yearHome').innerText = new Date().getFullYear();
 
-  // load latest products (public preview)
-  async function loadProducts(query) {
-    const container = document.getElementById('homeProducts');
-    const msg = document.getElementById('homeMsg');
-    container.innerHTML = '<div class="loading">Carregando...</div>';
-    try {
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const url = query
-        ? `/api/products?page=1&limit=4&q=${encodeURIComponent(query)}`
-        : `/api/products?page=1&limit=4`;
-
-      const res = await fetch(url, { headers });
-      const data = await res.json();
-      const products = data.data || [];
-      container.innerHTML = '';
-      if (!products.length) {
-        msg.textContent = 'Nenhum produto disponível no momento.';
-        return;
-      }
-      products.forEach(p => container.appendChild(renderProductCard(p)));
-    } catch (e) {
-      console.error('Erro carregando produtos:', e);
-      container.innerHTML = '';
-      msg.textContent = 'Erro carregando produtos (funcional offline).';
-    }
-  }
-
-  loadProducts();
-
-  // enable search only if logged in
-  const token = localStorage.getItem('token');
-  if (token) {
-    document.getElementById('searchSection').style.display = 'block';
-    document.getElementById('searchBtn').addEventListener('click', () => {
-      const q = document.getElementById('searchInput').value.trim();
-      if (q) loadProducts(q);
-    });
-  }
-
-  // contact form handler (unchanged)
-  document.getElementById('contactForm').addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const form = e.target;
-    const msg = document.getElementById('contactMsg');
-    msg.textContent = '';
-
-    const data = Object.fromEntries(new FormData(form));
-    try {
-      await fetchJSON('/api/messages', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          phone: data.phone || null,
-          subject: data.subject,
-          message: data.message
-        })
-      });
-
-      showToast('Mensagem enviada com sucesso!', 'success');
-      msg.textContent = 'Obrigado pelo contacto. Responderemos em breve.';
-      form.reset();
-    } catch (err) {
-      console.error('Erro ao enviar mensagem:', err);
-      showToast('Erro ao enviar mensagem', 'error');
-      msg.textContent = 'Ocorreu um erro. Tente novamente mais tarde.';
-    }
-  });
+  // -----------------------------------------------------------------
+  // Your existing JavaScript (loadProducts, contact form, etc.) can stay
+  // -----------------------------------------------------------------
 </script>
 </body>
 </html>
